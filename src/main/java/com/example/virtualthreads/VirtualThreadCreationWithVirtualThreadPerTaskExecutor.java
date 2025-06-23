@@ -33,5 +33,6 @@ public class VirtualThreadCreationWithVirtualThreadPerTaskExecutor {
                 executor.submit(task);
             }
         }
+        // No manual shutdown, threads are cleaned up after task ends
     }
 }
