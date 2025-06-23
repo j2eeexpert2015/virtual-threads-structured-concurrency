@@ -1,35 +1,39 @@
 package com.example.virtualthreads;
 
+/**
+ * Demonstrates creating threads using the Thread.Builder API.
+ * Shows:
+ * - Platform vs. virtual thread creation
+ * - Unstarted thread usage
+ */
 public class VirtualThreadCreationWithBuilder {
-	public static void main(String[] args) throws InterruptedException {
-		// Create a reusable task that prints thread information
-		// This same task will run on both platform and virtual threads for comparison
-		Runnable task = () -> {
-			System.out.println("@@@@ Starting Task @@@@@");
-			System.out.println("Running in thread: " + Thread.currentThread());
-			System.out.println("Thread name: " + Thread.currentThread().getName());
-			System.out.println("Is virtual: " + Thread.currentThread().isVirtual());
-			System.out.println("Is it a daemon thread? " + Thread.currentThread().isDaemon());
-		};
 
-		System.out.println("\n=== Platform Thread Builder ===");
-		// Create a platform thread with custom name and start it immediately
-		Thread platformThread = Thread.ofPlatform().name("custom-platform-thread").start(task);
-		platformThread.join(); // Wait for platform thread to complete
+    
 
-		System.out.println("\n=== Virtual Thread Builder ===");
-		// Create a virtual thread with custom name, start it, and wait for completion
-		Thread virtualThreadStarted = Thread.ofVirtual().name("custom-virtual-thread").start(task);
-		virtualThreadStarted.join();
-		
-		System.out.println("\n=== Virtual Thread Builder (Unstarted) ===");
-        // Create virtual thread without starting - same pattern works for both thread types
-        Thread virtualThreadUnStarted = Thread.ofVirtual()
-            .name("unstarted-virtual-thread")
-            .unstarted(task);
-        System.out.println("state(before start): " + virtualThreadUnStarted.getState());
-        virtualThreadUnStarted.start(); // Start when ready
-        System.out.println("state(after start): " + virtualThreadUnStarted.getState());
-        virtualThreadUnStarted.join();   // Wait for completion
-	}
+    public static void main(String[] args) throws InterruptedException {
+
+        Runnable basicTask = () -> {
+            Thread current = Thread.currentThread();
+            System.out.println("---- Task Started ----");
+            System.out.println("Thread Name: " + current.getName());
+            System.out.println("Is Virtual: " + current.isVirtual());
+            System.out.println("Is Daemon: " + current.isDaemon());
+        };
+
+        System.out.println("\n=== Platform Thread (Builder) ===");
+        Thread platformThread = Thread.ofPlatform().name("platform-thread").start(basicTask);
+        platformThread.join();
+
+        System.out.println("\n=== Virtual Thread (Started Immediately) ===");
+        Thread virtualThread = Thread.ofVirtual().name("virtual-thread").start(basicTask);
+        virtualThread.join();
+
+        System.out.println("\n=== Virtual Thread (Unstarted) ===");
+        Thread unstartedVirtual = Thread.ofVirtual().name("unstarted-thread").unstarted(basicTask);
+        System.out.println("Before start: " + unstartedVirtual.getState());
+        unstartedVirtual.start();
+        unstartedVirtual.join();
+
+       
+    }
 }

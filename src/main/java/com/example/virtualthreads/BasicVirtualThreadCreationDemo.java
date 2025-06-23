@@ -1,5 +1,11 @@
 package com.example.virtualthreads;
 
+/**
+ * This class demonstrates the most basic way to create and manage threads in Java.
+ * It contrasts traditional platform threads with the new virtual threads introduced in Java 21,
+ * highlighting their simplicity of creation and execution.
+ */
+
 public class BasicVirtualThreadCreationDemo {
 	public static void main(String[] args) throws InterruptedException {
 		
@@ -10,22 +16,13 @@ public class BasicVirtualThreadCreationDemo {
             System.out.println("Is it a daemon thread? " + Thread.currentThread().isDaemon());
         };
         
-        Thread platformThread1 = new Thread(task);
-        platformThread1.start();
-        platformThread1.join();
+        Thread platformThread = new Thread(task);
+        platformThread.start();
+        platformThread.join();
         
-        Thread.startVirtualThread(task).join();
+        Thread virtualThread = Thread.startVirtualThread(task);
+        virtualThread.join();
 		
 	}
-    public void runDemo() {
-        System.out.println("\n--- Basic Virtual Thread Creation (Thread.startVirtualThread()) ---");
-        
-        Runnable task = () -> {
-            System.out.println("Hello, World!");
-            System.out.println("Running in thread: " + Thread.currentThread());
-            System.out.println("Is virtual: " + Thread.currentThread().isVirtual());
-        };
-        
-        Thread.startVirtualThread(task);
-    }
+    
 }

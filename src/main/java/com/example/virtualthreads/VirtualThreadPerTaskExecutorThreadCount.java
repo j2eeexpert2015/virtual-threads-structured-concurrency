@@ -3,7 +3,7 @@ package com.example.virtualthreads;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 
-public class CreatingExecutorService {
+public class VirtualThreadPerTaskExecutorThreadCount {
 
     public static void main(String[] args) {
 
