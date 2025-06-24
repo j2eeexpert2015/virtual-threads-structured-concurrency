@@ -32,6 +32,7 @@ public class VirtualThreadCreationWithBuilder {
         Thread unstartedVirtual = Thread.ofVirtual().name("unstarted-thread").unstarted(basicTask);
         System.out.println("Before start: " + unstartedVirtual.getState());
         unstartedVirtual.start();
+        System.out.println("After start: " + unstartedVirtual.getState());
         unstartedVirtual.join();
 
        
