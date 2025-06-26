@@ -36,7 +36,7 @@ public class HighBlockingIOExample {
             final int taskId = i;
             executor.submit(() -> {
                 try {
-                    doCpuWork(300); // GREEN - CPU (5%)
+                    doCpuWork(300);
                     waitForTask(taskQueue, taskId); // YELLOW - Monitor wait (5%)
                     synchronizedWork(sharedLock, taskId); // SALMON - Synchronized block (10%)
                     blockingNetworkCall(); // RED - Blocking I/O (70%)

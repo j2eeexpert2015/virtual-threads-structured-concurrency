@@ -3,3 +3,6 @@
 .classpath
 .gitattributes
 /.idea
+/build
+*.log
+*.jtl

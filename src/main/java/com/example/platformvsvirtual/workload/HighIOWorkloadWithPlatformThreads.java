@@ -1,15 +1,15 @@
-package com.example.platformvsvirtual;
+package com.example.platformvsvirtual.workload;
 
 import java.util.Scanner;
 import java.util.concurrent.*;
 
-public class HighBlockingIOWithVirtualThreads {
+public class HighIOWorkloadWithPlatformThreads {
 
     public static void main(String[] args) throws Exception {
         System.out.println("Press Enter to start");
-        new Scanner(System.in).nextLine();
+        new Scanner(System.in).nextLine(); // Wait for enter
 
-        ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
+        ExecutorService executor = Executors.newFixedThreadPool(100);
         executeConcurrentWorkload(executor, 10_000);
         System.out.println("Press Enter to finish");
         new Scanner(System.in).nextLine();

@@ -1,9 +1,9 @@
-package com.example.platformvsvirtual;
+package com.example.platformvsvirtual.workload;
 
 import java.util.Scanner;
 import java.util.concurrent.*;
 
-public class HighMixedWorkloadWithPlatformThreads {
+public class HighMixedWorkloadWithVirtualThreads {
 
     // === CONFIGURABLE CONSTANTS ===
     private static final int TASK_COUNT = 10_000;
@@ -16,7 +16,7 @@ public class HighMixedWorkloadWithPlatformThreads {
         System.out.println("Press Enter to start");
         new Scanner(System.in).nextLine();
 
-        ExecutorService executor = Executors.newFixedThreadPool(PLATFORM_THREAD_POOL_SIZE);
+        ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
         executeConcurrentWorkload(executor, TASK_COUNT);
 
         System.out.println("Press Enter to finish");
