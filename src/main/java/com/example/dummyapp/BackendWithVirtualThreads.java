@@ -9,14 +9,14 @@ import java.util.concurrent.Executors;
 
 import static com.example.dummyapp.ServerConstants.*;
 
-public class BackendServerWithVirtualThreads {
+public class BackendWithVirtualThreads {
 
     private final int port;
     private final int delayMs;
     private final ExecutorService executor;
     private volatile boolean running = true;
 
-    public BackendServerWithVirtualThreads(int port, int delayMs) {
+    public BackendWithVirtualThreads(int port, int delayMs) {
         this.port = port;
         this.delayMs = delayMs;
         // Virtual threads - unlimited concurrency
@@ -138,7 +138,7 @@ public class BackendServerWithVirtualThreads {
         int port = args.length > 0 ? Integer.parseInt(args[0]) : BACKEND_VIRTUAL_PORT;
         int delay = args.length > 1 ? Integer.parseInt(args[1]) : DEFAULT_BACKEND_DELAY_MS;
 
-        BackendServerWithVirtualThreads backendServer = new BackendServerWithVirtualThreads(port, delay);
+        BackendWithVirtualThreads backendServer = new BackendWithVirtualThreads(port, delay);
 
         // Shutdown hook
         Runtime.getRuntime().addShutdownHook(new Thread(backendServer::stop));

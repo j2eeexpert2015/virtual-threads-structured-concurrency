@@ -9,14 +9,14 @@ import java.util.concurrent.Executors;
 
 import static com.example.dummyapp.ServerConstants.*;
 
-public class BackendServerWithPlatformThreads {
+public class BackendWithPlatformThreads {
 
     private final int port;
     private final int delayMs;
     private final ExecutorService executor;
     private volatile boolean running = true;
 
-    public BackendServerWithPlatformThreads(int port, int delayMs) {
+    public BackendWithPlatformThreads(int port, int delayMs) {
         this.port = port;
         this.delayMs = delayMs;
         // Platform threads with fixed thread pool
@@ -138,7 +138,7 @@ public class BackendServerWithPlatformThreads {
         int port = args.length > 0 ? Integer.parseInt(args[0]) : BACKEND_PLATFORM_PORT;
         int delay = args.length > 1 ? Integer.parseInt(args[1]) : DEFAULT_BACKEND_DELAY_MS;
 
-        BackendServerWithPlatformThreads backendServer = new BackendServerWithPlatformThreads(port, delay);
+        BackendWithPlatformThreads backendServer = new BackendWithPlatformThreads(port, delay);
 
         // Shutdown hook
         Runtime.getRuntime().addShutdownHook(new Thread(backendServer::stop));
