@@ -1,22 +1,18 @@
-package com.example.pinning;
+package com;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.SocketTimeoutException;
 import java.net.URL;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 /**
  * Simulates a high I/O blocking workload (80% blocking).
  * Execution time: ~60s with network latency from httpbin.org.
  * Use this to demonstrate how virtual threads handle I/O-bound workloads better than platform threads.
  */
-public class HighBlockingIOExample {
+public class HighBlockingIOExampleWithVirtualThreadPinning {
 
     public static void main(String[] args) throws Exception {
         System.out.println("PID: " + ProcessHandle.current().pid());
@@ -24,8 +20,8 @@ public class HighBlockingIOExample {
         new BufferedReader(new InputStreamReader(System.in)).readLine();
 
         // CHANGE HERE for virtual thread variant:
-        ExecutorService executor = Executors.newFixedThreadPool(20);
-        // ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
+        //ExecutorService executor = Executors.newFixedThreadPool(20);
+        ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
 
         Object sharedLock = new Object();
         BlockingQueue<String> taskQueue = new ArrayBlockingQueue<>(10);
@@ -36,7 +32,7 @@ public class HighBlockingIOExample {
             final int taskId = i;
             executor.submit(() -> {
                 try {
-                    doCpuWork(300);
+                    doCpuWork(300); // GREEN - CPU (5%)
                     waitForTask(taskQueue, taskId); // YELLOW - Monitor wait (5%)
                     synchronizedWork(sharedLock, taskId); // SALMON - Synchronized block (10%)
                     blockingNetworkCall(); // RED - Blocking I/O (70%)

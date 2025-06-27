@@ -12,7 +12,8 @@ public final class ServerConstants {
     // === PORT CONFIGURATION ===
     public static final int BACKEND_PLATFORM_PORT = 8080;
     public static final int BACKEND_VIRTUAL_PORT = 8081;
-    public static final int FRONTEND_PORT = 9000;
+    public static final int FRONTEND_PLATFORM_PORT = 9000;
+    public static final int FRONTEND_VIRTUAL_PORT = 9001;
 
     // === BACKEND CONFIGURATION ===
     public static final int DEFAULT_BACKEND_DELAY_MS = 333;

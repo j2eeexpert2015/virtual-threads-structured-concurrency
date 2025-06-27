@@ -7,30 +7,39 @@ import java.net.Socket;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import static com.example.dummyapp.ServerConstants.*;
+import static com.example.dummyapp.ServerConstants.PLATFORM_THREAD_POOL_SIZE;
 
-public class BackendWithVirtualThreads {
+public class BackendForPT {
 
     private final int port;
     private final int delayMs;
     private final ExecutorService executor;
     private volatile boolean running = true;
 
-    public BackendWithVirtualThreads(int port, int delayMs) {
+    public BackendForPT(int port, int delayMs) {
         this.port = port;
         this.delayMs = delayMs;
-        // Virtual threads - unlimited concurrency
-        this.executor = Executors.newVirtualThreadPerTaskExecutor();
-        System.out.println("Backend using VIRTUAL THREADS (unlimited concurrency)");
+        // Platform threads with fixed thread pool
+        this.executor = Executors.newFixedThreadPool(100);
+        System.out.println("Backend using PLATFORM THREADS (pool size: 100)");
     }
 
     public void start() throws IOException {
         try (ServerSocket serverSocket = new ServerSocket(port)) {
-            System.out.println("Backend server started on port " + port + " with " + delayMs + "ms delay");
+            System.out.println("[BACKEND] Server started on port " + port + " with " + delayMs + "ms delay");
+            System.out.println("[BACKEND] Using PLATFORM THREADS (pool size: " + PLATFORM_THREAD_POOL_SIZE + ")");
+            System.out.println("[BACKEND] Ready to accept connections...");
 
             while (running) {
-                Socket clientSocket = serverSocket.accept();
-                executor.submit(() -> handleClient(clientSocket));
+                try {
+                    Socket clientSocket = serverSocket.accept();
+                    System.out.println("[BACKEND] Accepted connection from " + clientSocket.getRemoteSocketAddress());
+                    executor.submit(() -> handleClient(clientSocket));
+                } catch (IOException e) {
+                    if (running) {
+                        System.err.println("[BACKEND] Accept error: " + e.getMessage());
+                    }
+                }
             }
         }
     }
@@ -41,12 +50,12 @@ public class BackendWithVirtualThreads {
              var output = clientSocket.getOutputStream()) {
 
             // Read HTTP request with better error handling
-            byte[] buffer = new byte[HTTP_BUFFER_SIZE];
+            byte[] buffer = new byte[1024];
             int bytesRead = input.read(buffer);
 
             // Handle empty or invalid requests
             if (bytesRead <= 0) {
-                System.err.println(NO_DATA_WARNING);
+                System.err.println("Warning: No data received from client");
                 return;
             }
 
@@ -54,8 +63,8 @@ public class BackendWithVirtualThreads {
 
             // Validate request has minimum required content
             if (request.trim().isEmpty() || !request.contains("HTTP")) {
-                System.err.println(INVALID_HTTP_WARNING);
-                sendErrorResponse(output, 400, BAD_REQUEST_ERROR);
+                System.err.println("Warning: Invalid HTTP request received");
+                sendErrorResponse(output, 400, "Bad Request");
                 return;
             }
 
@@ -94,13 +103,13 @@ public class BackendWithVirtualThreads {
 
     private String handleRequest(String path) {
         if (path.startsWith("/auth")) {
-            return String.format(AUTH_RESPONSE_TEMPLATE, VIRTUAL_THREAD_TYPE);
+            return "{\"userId\":\"user123\",\"status\":\"authenticated\",\"threadType\":\"platform\"}";
         } else if (path.startsWith("/permissions")) {
-            return String.format(PERMISSIONS_RESPONSE_TEMPLATE, VIRTUAL_THREAD_TYPE);
+            return "{\"canAccess\":true,\"roles\":[\"user\"],\"threadType\":\"platform\"}";
         } else if (path.startsWith("/data")) {
-            return String.format(DATA_RESPONSE_TEMPLATE, VIRTUAL_THREAD_TYPE);
+            return "{\"result\":\"success\",\"data\":[1,2,3,4,5],\"threadType\":\"platform\"}";
         } else {
-            return String.format(ERROR_RESPONSE_TEMPLATE, NOT_FOUND_ERROR, VIRTUAL_THREAD_TYPE);
+            return "{\"error\":\"Not found\",\"threadType\":\"platform\"}";
         }
     }
 
@@ -117,7 +126,7 @@ public class BackendWithVirtualThreads {
     }
 
     private void sendErrorResponse(OutputStream output, int statusCode, String statusText) throws IOException {
-        String body = String.format(ERROR_RESPONSE_TEMPLATE, statusText, VIRTUAL_THREAD_TYPE);
+        String body = "{\"error\":\"" + statusText + "\",\"threadType\":\"platform\"}";
         String httpResponse = "HTTP/1.1 " + statusCode + " " + statusText + "\r\n" +
                 "Content-Type: application/json\r\n" +
                 "Content-Length: " + body.length() + "\r\n" +
@@ -135,10 +144,10 @@ public class BackendWithVirtualThreads {
     }
 
     public static void main(String[] args) {
-        int port = args.length > 0 ? Integer.parseInt(args[0]) : BACKEND_VIRTUAL_PORT;
-        int delay = args.length > 1 ? Integer.parseInt(args[1]) : DEFAULT_BACKEND_DELAY_MS;
+        int port = args.length > 0 ? Integer.parseInt(args[0]) : 8080;
+        int delay = args.length > 1 ? Integer.parseInt(args[1]) : 333;
 
-        BackendWithVirtualThreads backendServer = new BackendWithVirtualThreads(port, delay);
+        BackendForPT backendServer = new BackendForPT(port, delay);
 
         // Shutdown hook
         Runtime.getRuntime().addShutdownHook(new Thread(backendServer::stop));

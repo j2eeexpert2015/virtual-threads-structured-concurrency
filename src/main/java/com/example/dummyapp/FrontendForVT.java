@@ -12,81 +12,86 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.logging.Logger;
+import java.util.logging.Level;
 
 import static com.example.dummyapp.ServerConstants.*;
 
-public class FrontendPlatformServer {
+public class FrontendForVT {
+
+    private static final Logger logger = Logger.getLogger(FrontendForVT.class.getName());
 
     private final int port;
     private final ExecutorService executor;
     private final HttpClient httpClient;
     private final String backendUrl;
     private volatile boolean running = true;
+    private final AtomicLong requestCount = new AtomicLong(0);
 
-    public FrontendPlatformServer(int port, String backendUrl, int platformThreads) {
+    public FrontendForVT(int port, String backendUrl) {
         this.port = port;
         this.backendUrl = backendUrl;
 
-        // Always use Platform Threads
-        this.executor = Executors.newFixedThreadPool(platformThreads);
+        // Always use Virtual Threads
+        this.executor = Executors.newVirtualThreadPerTaskExecutor();
         this.httpClient = HttpClient.newBuilder()
+                .executor(Executors.newVirtualThreadPerTaskExecutor())
                 .connectTimeout(Duration.ofSeconds(HTTP_CONNECT_TIMEOUT_SECONDS))
                 .build();
 
-        System.out.println("Frontend using PLATFORM THREADS (pool size: " + platformThreads + ")");
+        logger.info("Frontend initialized with VIRTUAL THREADS");
     }
 
     public void start() throws IOException {
         try (ServerSocket serverSocket = new ServerSocket(port)) {
-            System.out.println("Platform Frontend server started on port " + port);
-            System.out.println("Backend URL: " + backendUrl);
-            System.out.println("Thread Type: " + PLATFORM_THREAD_TYPE);
-            System.out.println("Test with: curl http://localhost:" + port + "/api/process");
+            logger.info(String.format("Server started on port %d | Backend: %s", port, backendUrl));
 
             while (running) {
                 Socket clientSocket = serverSocket.accept();
-                executor.submit(() -> handleClient(clientSocket));
+                long reqId = requestCount.incrementAndGet();
+                executor.submit(() -> handleClient(clientSocket, reqId));
             }
         }
     }
 
-    private void handleClient(Socket clientSocket) {
+    private void handleClient(Socket clientSocket, long requestId) {
         try (clientSocket;
              InputStream input = clientSocket.getInputStream();
              OutputStream output = clientSocket.getOutputStream()) {
 
-            // Read HTTP request with better error handling
             byte[] buffer = new byte[HTTP_BUFFER_SIZE];
             int bytesRead = input.read(buffer);
 
-            // Handle empty or invalid requests
             if (bytesRead <= 0) {
-                System.err.println(NO_DATA_WARNING);
+                logger.warning("Empty request received");
                 return;
             }
 
             String request = new String(buffer, 0, bytesRead);
 
-            // Validate request has minimum required content
             if (request.trim().isEmpty() || !request.contains("HTTP")) {
-                System.err.println(INVALID_HTTP_WARNING);
+                logger.warning("Invalid HTTP request");
                 sendHttpResponse(output, 400,
-                        String.format(ERROR_RESPONSE_TEMPLATE, BAD_REQUEST_ERROR, PLATFORM_THREAD_TYPE),
+                        String.format(ERROR_RESPONSE_TEMPLATE, BAD_REQUEST_ERROR, VIRTUAL_THREAD_TYPE),
                         "application/json");
                 return;
             }
 
-            // Check if it's our API endpoint
             if (request.contains("GET /api/process")) {
+                long startTime = System.currentTimeMillis();
                 String response = processRequest();
+                long duration = System.currentTimeMillis() - startTime;
+
+                logger.info(String.format("REQ[%d] processed in %dms", requestId, duration));
                 sendHttpResponse(output, 200, response, "application/json");
             } else {
-                String errorResponse = String.format(ERROR_RESPONSE_TEMPLATE, "Endpoint not found", PLATFORM_THREAD_TYPE);
+                String errorResponse = String.format(ERROR_RESPONSE_TEMPLATE, "Endpoint not found", VIRTUAL_THREAD_TYPE);
                 sendHttpResponse(output, 404, errorResponse, "application/json");
             }
 
         } catch (Exception e) {
-            System.err.println("Error handling client: " + e.getMessage());
+            logger.log(Level.SEVERE, String.format("Error handling request[%d]: %s", requestId, e.getMessage()), e);
         }
     }
 
@@ -103,18 +108,21 @@ public class FrontendPlatformServer {
 
             return String.format(
                     "{\"status\":\"success\",\"totalTime\":%d,\"threadType\":\"%s\",\"auth\":%s,\"permissions\":%s,\"data\":%s}",
-                    totalTime, PLATFORM_THREAD_TYPE, authResponse, permResponse, dataResponse
+                    totalTime, VIRTUAL_THREAD_TYPE, authResponse, permResponse, dataResponse
             );
 
         } catch (Exception e) {
+            logger.severe("Backend processing failed: " + e.getMessage());
             return String.format(
                     "{\"status\":\"error\",\"message\":\"%s\",\"threadType\":\"%s\"}",
-                    e.getMessage(), PLATFORM_THREAD_TYPE
+                    e.getMessage(), VIRTUAL_THREAD_TYPE
             );
         }
     }
 
     private String callBackend(String endpoint) throws Exception {
+        long start = System.currentTimeMillis();
+
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(backendUrl + endpoint))
                 .timeout(Duration.ofSeconds(HTTP_REQUEST_TIMEOUT_SECONDS))
@@ -123,10 +131,14 @@ public class FrontendPlatformServer {
 
         HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
+        long duration = System.currentTimeMillis() - start;
+
         if (response.statusCode() != 200) {
+            logger.warning(String.format("Backend %s failed: %d (%dms)", endpoint, response.statusCode(), duration));
             throw new RuntimeException("Backend call failed: " + response.statusCode());
         }
 
+        logger.fine(String.format("Backend %s: %dms", endpoint, duration));
         return response.body();
     }
 
@@ -149,21 +161,17 @@ public class FrontendPlatformServer {
     public void stop() {
         running = false;
         executor.shutdown();
+        logger.info("Server stopped");
     }
 
     public static void main(String[] args) {
-        int port = args.length > 0 ? Integer.parseInt(args[0]) : FRONTEND_PORT;
-        String backendUrl = args.length > 1 ? args[1] : BACKEND_PLATFORM_URL;
-        int platformThreads = args.length > 2 ? Integer.parseInt(args[2]) : DEFAULT_PLATFORM_THREAD_POOL_SIZE;
+        int port = args.length > 0 ? Integer.parseInt(args[0]) : FRONTEND_VIRTUAL_PORT;
+        String backendUrl = args.length > 1 ? args[1] : BACKEND_VIRTUAL_URL;
 
-        System.out.println("=== Platform Frontend Server Configuration ===");
-        System.out.println("Port: " + port);
-        System.out.println("Thread Type: " + PLATFORM_THREAD_TYPE);
-        System.out.println("Backend URL: " + backendUrl);
-        System.out.println("Platform Thread Pool Size: " + platformThreads);
-        System.out.println("===============================================\n");
+        // Set log level to INFO for minimal logging
+        Logger.getLogger("com.example.dummyapp").setLevel(Level.INFO);
 
-        FrontendPlatformServer frontendServer = new FrontendPlatformServer(port, backendUrl, platformThreads);
+        FrontendForVT frontendServer = new FrontendForVT(port, backendUrl);
 
         // Shutdown hook
         Runtime.getRuntime().addShutdownHook(new Thread(frontendServer::stop));
@@ -171,7 +179,8 @@ public class FrontendPlatformServer {
         try {
             frontendServer.start();
         } catch (IOException e) {
-            System.err.println("Failed to start Platform Frontend server: " + e.getMessage());
+            logger.severe("Failed to start server: " + e.getMessage());
+            System.exit(1);
         }
     }
 }

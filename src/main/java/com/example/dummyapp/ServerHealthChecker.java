@@ -9,6 +9,7 @@ import java.time.Duration;
 import static com.example.dummyapp.ServerConstants.*;
 
 public class ServerHealthChecker {
+    /*
 
     public static void main(String[] args) {
         System.out.println("=== Server Health Check ===\n");
@@ -124,4 +125,7 @@ public class ServerHealthChecker {
         System.out.println("Frontend (Platform): java --enable-preview -cp build com.example.dummyapp.FrontendServer " + FRONTEND_PORT + " " + PLATFORM_THREAD_TYPE + " " + BACKEND_PLATFORM_URL + " " + DEFAULT_PLATFORM_THREAD_POOL_SIZE);
         System.out.println("Frontend (Virtual):  java --enable-preview -cp build com.example.dummyapp.FrontendServer " + FRONTEND_PORT + " " + VIRTUAL_THREAD_TYPE + " " + BACKEND_VIRTUAL_URL);
     }
+
+
+     */
 }

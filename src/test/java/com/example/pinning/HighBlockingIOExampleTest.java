@@ -1,4 +1,9 @@
 package com.example.pinning;
+import me.escoffier.loom.loomunit.LoomUnitExtension;
+import me.escoffier.loom.loomunit.ShouldNotPin;
+import me.escoffier.loom.loomunit.ShouldPin;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -7,20 +12,16 @@ import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.util.concurrent.*;
 
-/**
- * Simulates a high I/O blocking workload (80% blocking).
- * Execution time: ~60s with network latency from httpbin.org.
- * Use this to demonstrate how virtual threads handle I/O-bound workloads better than platform threads.
- */
-public class HighBlockingIOExampleWithVirtualThreadPinning {
+@ExtendWith(LoomUnitExtension.class)
+public class HighBlockingIOExampleTest {
 
-    public static void main(String[] args) throws Exception {
+    @Test
+    //@ShouldNotPin
+    @ShouldPin
+    public void test() throws Exception {
         System.out.println("PID: " + ProcessHandle.current().pid());
-        System.out.println("Press Enter to continue...");
-        new BufferedReader(new InputStreamReader(System.in)).readLine();
-
-        // CHANGE HERE for virtual thread variant:
-        //ExecutorService executor = Executors.newFixedThreadPool(20);
+        // Enable detailed pinning diagnostics
+        //System.setProperty("jdk.tracePinnedThreads", "full");
         ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
 
         Object sharedLock = new Object();
@@ -32,7 +33,7 @@ public class HighBlockingIOExampleWithVirtualThreadPinning {
             final int taskId = i;
             executor.submit(() -> {
                 try {
-                    doCpuWork(300); // GREEN - CPU (5%)
+                    doCpuWork(300);
                     waitForTask(taskQueue, taskId); // YELLOW - Monitor wait (5%)
                     synchronizedWork(sharedLock, taskId); // SALMON - Synchronized block (10%)
                     blockingNetworkCall(); // RED - Blocking I/O (70%)
@@ -50,8 +51,7 @@ public class HighBlockingIOExampleWithVirtualThreadPinning {
         long end = System.currentTimeMillis();
         System.out.println("Total time: " + (end - start) + " ms");
         System.out.println("=== EXECUTION COMPLETE ===");
-        System.out.println("Press Enter to exit...");
-        new BufferedReader(new InputStreamReader(System.in)).readLine();
+
     }
 
     private static void waitForTask(BlockingQueue<String> queue, int taskId) throws Exception {

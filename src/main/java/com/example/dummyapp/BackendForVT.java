@@ -6,36 +6,46 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.logging.Logger;
+import java.util.logging.Level;
 
 import static com.example.dummyapp.ServerConstants.*;
 
-public class BackendWithPlatformThreads {
+public class BackendForVT {
+
+    private static final Logger logger = Logger.getLogger(BackendForVT.class.getName());
 
     private final int port;
     private final int delayMs;
     private final ExecutorService executor;
     private volatile boolean running = true;
+    private final AtomicLong requestCount = new AtomicLong(0);
 
-    public BackendWithPlatformThreads(int port, int delayMs) {
+    public BackendForVT(int port, int delayMs) {
         this.port = port;
         this.delayMs = delayMs;
-        // Platform threads with fixed thread pool
-        this.executor = Executors.newFixedThreadPool(PLATFORM_THREAD_POOL_SIZE);
-        System.out.println("Backend using PLATFORM THREADS (pool size: " + PLATFORM_THREAD_POOL_SIZE + ")");
+        // Virtual threads - unlimited concurrency
+        this.executor = Executors.newVirtualThreadPerTaskExecutor();
+        logger.info("Backend initialized with VIRTUAL THREADS");
     }
 
     public void start() throws IOException {
         try (ServerSocket serverSocket = new ServerSocket(port)) {
-            System.out.println("Backend server started on port " + port + " with " + delayMs + "ms delay");
+            logger.info(String.format("Backend started on port %d | Delay: %dms", port, delayMs));
 
             while (running) {
                 Socket clientSocket = serverSocket.accept();
-                executor.submit(() -> handleClient(clientSocket));
+                long reqId = requestCount.incrementAndGet();
+                executor.submit(() -> handleClient(clientSocket, reqId));
             }
         }
     }
 
-    private void handleClient(Socket clientSocket) {
+    private void handleClient(Socket clientSocket, long requestId) {
+        long startTime = System.currentTimeMillis();
+        String path = null;
+
         try (clientSocket;
              var input = clientSocket.getInputStream();
              var output = clientSocket.getOutputStream()) {
@@ -46,7 +56,7 @@ public class BackendWithPlatformThreads {
 
             // Handle empty or invalid requests
             if (bytesRead <= 0) {
-                System.err.println(NO_DATA_WARNING);
+                logger.warning("Empty request received");
                 return;
             }
 
@@ -54,13 +64,13 @@ public class BackendWithPlatformThreads {
 
             // Validate request has minimum required content
             if (request.trim().isEmpty() || !request.contains("HTTP")) {
-                System.err.println(INVALID_HTTP_WARNING);
+                logger.warning("Invalid HTTP request");
                 sendErrorResponse(output, 400, BAD_REQUEST_ERROR);
                 return;
             }
 
             // Extract path from request line
-            String path = extractPath(request);
+            path = extractPath(request);
             String response = handleRequest(path);
 
             // Simulate processing delay
@@ -69,11 +79,16 @@ public class BackendWithPlatformThreads {
             // Send HTTP response
             sendSuccessResponse(output, response);
 
+            long duration = System.currentTimeMillis() - startTime;
+            logger.info(String.format("REQ[%d] %s processed in %dms", requestId, path, duration));
+
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            System.err.println("Request interrupted: " + e.getMessage());
+            logger.warning(String.format("Request[%d] interrupted: %s", requestId, e.getMessage()));
         } catch (Exception e) {
-            System.err.println("Error handling client: " + e.getMessage());
+            long duration = System.currentTimeMillis() - startTime;
+            logger.log(Level.SEVERE, String.format("Error handling request[%d] %s after %dms: %s",
+                    requestId, path != null ? path : "unknown", duration, e.getMessage()), e);
         }
     }
 
@@ -87,21 +102,29 @@ public class BackendWithPlatformThreads {
                 }
             }
         } catch (Exception e) {
-            System.err.println("Error extracting path from request: " + e.getMessage());
+            logger.warning("Error extracting path from request: " + e.getMessage());
         }
         return "/";
     }
 
     private String handleRequest(String path) {
+        String response;
+
         if (path.startsWith("/auth")) {
-            return String.format(AUTH_RESPONSE_TEMPLATE, PLATFORM_THREAD_TYPE);
+            response = String.format(AUTH_RESPONSE_TEMPLATE, VIRTUAL_THREAD_TYPE);
+            logger.fine("Auth endpoint called");
         } else if (path.startsWith("/permissions")) {
-            return String.format(PERMISSIONS_RESPONSE_TEMPLATE, PLATFORM_THREAD_TYPE);
+            response = String.format(PERMISSIONS_RESPONSE_TEMPLATE, VIRTUAL_THREAD_TYPE);
+            logger.fine("Permissions endpoint called");
         } else if (path.startsWith("/data")) {
-            return String.format(DATA_RESPONSE_TEMPLATE, PLATFORM_THREAD_TYPE);
+            response = String.format(DATA_RESPONSE_TEMPLATE, VIRTUAL_THREAD_TYPE);
+            logger.fine("Data endpoint called");
         } else {
-            return String.format(ERROR_RESPONSE_TEMPLATE, NOT_FOUND_ERROR, PLATFORM_THREAD_TYPE);
+            response = String.format(ERROR_RESPONSE_TEMPLATE, NOT_FOUND_ERROR, VIRTUAL_THREAD_TYPE);
+            logger.warning("Unknown endpoint requested: " + path);
         }
+
+        return response;
     }
 
     private void sendSuccessResponse(OutputStream output, String body) throws IOException {
@@ -117,7 +140,7 @@ public class BackendWithPlatformThreads {
     }
 
     private void sendErrorResponse(OutputStream output, int statusCode, String statusText) throws IOException {
-        String body = String.format(ERROR_RESPONSE_TEMPLATE, statusText, PLATFORM_THREAD_TYPE);
+        String body = String.format(ERROR_RESPONSE_TEMPLATE, statusText, VIRTUAL_THREAD_TYPE);
         String httpResponse = "HTTP/1.1 " + statusCode + " " + statusText + "\r\n" +
                 "Content-Type: application/json\r\n" +
                 "Content-Length: " + body.length() + "\r\n" +
@@ -127,18 +150,24 @@ public class BackendWithPlatformThreads {
 
         output.write(httpResponse.getBytes());
         output.flush();
+
+        logger.warning(String.format("Sent error response: %d %s", statusCode, statusText));
     }
 
     public void stop() {
         running = false;
         executor.shutdown();
+        logger.info(String.format("Backend stopped after processing %d requests", requestCount.get()));
     }
 
     public static void main(String[] args) {
-        int port = args.length > 0 ? Integer.parseInt(args[0]) : BACKEND_PLATFORM_PORT;
+        int port = args.length > 0 ? Integer.parseInt(args[0]) : BACKEND_VIRTUAL_PORT;
         int delay = args.length > 1 ? Integer.parseInt(args[1]) : DEFAULT_BACKEND_DELAY_MS;
 
-        BackendWithPlatformThreads backendServer = new BackendWithPlatformThreads(port, delay);
+        // Set log level to INFO for minimal logging
+        Logger.getLogger("com.example.dummyapp").setLevel(Level.INFO);
+
+        BackendForVT backendServer = new BackendForVT(port, delay);
 
         // Shutdown hook
         Runtime.getRuntime().addShutdownHook(new Thread(backendServer::stop));
@@ -146,7 +175,8 @@ public class BackendWithPlatformThreads {
         try {
             backendServer.start();
         } catch (IOException e) {
-            System.err.println("Failed to start server: " + e.getMessage());
+            logger.severe("Failed to start backend server: " + e.getMessage());
+            System.exit(1);
         }
     }
 }

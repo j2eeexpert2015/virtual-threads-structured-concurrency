@@ -15,7 +15,7 @@ import java.util.concurrent.Executors;
 
 import static com.example.dummyapp.ServerConstants.*;
 
-public class FrontendVirtualServer {
+public class FrontendForPT {
 
     private final int port;
     private final ExecutorService executor;
@@ -23,30 +23,46 @@ public class FrontendVirtualServer {
     private final String backendUrl;
     private volatile boolean running = true;
 
-    public FrontendVirtualServer(int port, String backendUrl) {
+    public FrontendForPT(int port, String backendUrl, int platformThreads) {
         this.port = port;
         this.backendUrl = backendUrl;
 
-        // Always use Virtual Threads
-        this.executor = Executors.newVirtualThreadPerTaskExecutor();
+        // Always use Platform Threads
+        this.executor = Executors.newFixedThreadPool(platformThreads);
         this.httpClient = HttpClient.newBuilder()
-                .executor(Executors.newVirtualThreadPerTaskExecutor())
                 .connectTimeout(Duration.ofSeconds(HTTP_CONNECT_TIMEOUT_SECONDS))
                 .build();
 
-        System.out.println("Frontend using VIRTUAL THREADS (unlimited concurrency)");
+        System.out.println("Frontend using PLATFORM THREADS (pool size: " + platformThreads + ")");
     }
 
     public void start() throws IOException {
         try (ServerSocket serverSocket = new ServerSocket(port)) {
-            System.out.println("Virtual Frontend server started on port " + port);
-            System.out.println("Backend URL: " + backendUrl);
-            System.out.println("Thread Type: " + VIRTUAL_THREAD_TYPE);
-            System.out.println("Test with: curl http://localhost:" + port + "/api/process");
+            serverSocket.setReuseAddress(true);
+            serverSocket.setSoTimeout(1000); // 1 second timeout for accept()
+
+            System.out.println("[FRONTEND] Platform Frontend server started on port " + port);
+            System.out.println("[FRONTEND] Backend URL: " + backendUrl);
+            System.out.println("[FRONTEND] Thread Type: " + PLATFORM_THREAD_TYPE);
+            System.out.println("[FRONTEND] Using thread pool size: " + PLATFORM_THREAD_POOL_SIZE);
+            System.out.println("[FRONTEND] Test with: curl http://localhost:" + port + "/api/process");
+            System.out.println("[FRONTEND] Ready to accept connections...");
 
             while (running) {
-                Socket clientSocket = serverSocket.accept();
-                executor.submit(() -> handleClient(clientSocket));
+                try {
+                    Socket clientSocket = serverSocket.accept();
+                    clientSocket.setSoTimeout(30000); // 30 second socket timeout
+                    System.out.println("[FRONTEND] Accepted connection from " + clientSocket.getRemoteSocketAddress());
+                    executor.submit(() -> handleClient(clientSocket));
+                } catch (java.net.SocketTimeoutException e) {
+                    // Normal timeout, continue accepting
+                    continue;
+                } catch (IOException e) {
+                    if (running) {
+                        System.err.println("[FRONTEND] Accept error: " + e.getMessage());
+                    }
+                    break;
+                }
             }
         }
     }
@@ -72,7 +88,7 @@ public class FrontendVirtualServer {
             if (request.trim().isEmpty() || !request.contains("HTTP")) {
                 System.err.println(INVALID_HTTP_WARNING);
                 sendHttpResponse(output, 400,
-                        String.format(ERROR_RESPONSE_TEMPLATE, BAD_REQUEST_ERROR, VIRTUAL_THREAD_TYPE),
+                        String.format(ERROR_RESPONSE_TEMPLATE, BAD_REQUEST_ERROR, PLATFORM_THREAD_TYPE),
                         "application/json");
                 return;
             }
@@ -82,7 +98,7 @@ public class FrontendVirtualServer {
                 String response = processRequest();
                 sendHttpResponse(output, 200, response, "application/json");
             } else {
-                String errorResponse = String.format(ERROR_RESPONSE_TEMPLATE, "Endpoint not found", VIRTUAL_THREAD_TYPE);
+                String errorResponse = String.format(ERROR_RESPONSE_TEMPLATE, "Endpoint not found", PLATFORM_THREAD_TYPE);
                 sendHttpResponse(output, 404, errorResponse, "application/json");
             }
 
@@ -104,13 +120,13 @@ public class FrontendVirtualServer {
 
             return String.format(
                     "{\"status\":\"success\",\"totalTime\":%d,\"threadType\":\"%s\",\"auth\":%s,\"permissions\":%s,\"data\":%s}",
-                    totalTime, VIRTUAL_THREAD_TYPE, authResponse, permResponse, dataResponse
+                    totalTime, PLATFORM_THREAD_TYPE, authResponse, permResponse, dataResponse
             );
 
         } catch (Exception e) {
             return String.format(
                     "{\"status\":\"error\",\"message\":\"%s\",\"threadType\":\"%s\"}",
-                    e.getMessage(), VIRTUAL_THREAD_TYPE
+                    e.getMessage(), PLATFORM_THREAD_TYPE
             );
         }
     }
@@ -153,16 +169,18 @@ public class FrontendVirtualServer {
     }
 
     public static void main(String[] args) {
-        int port = args.length > 0 ? Integer.parseInt(args[0]) : FRONTEND_PORT;
-        String backendUrl = args.length > 1 ? args[1] : BACKEND_VIRTUAL_URL;
+        int port = args.length > 0 ? Integer.parseInt(args[0]) : FRONTEND_PLATFORM_PORT;
+        String backendUrl = args.length > 1 ? args[1] : BACKEND_PLATFORM_URL;
+        int platformThreads = args.length > 2 ? Integer.parseInt(args[2]) : DEFAULT_PLATFORM_THREAD_POOL_SIZE;
 
-        System.out.println("=== Virtual Frontend Server Configuration ===");
+        System.out.println("=== Platform Frontend Server Configuration ===");
         System.out.println("Port: " + port);
-        System.out.println("Thread Type: " + VIRTUAL_THREAD_TYPE);
+        System.out.println("Thread Type: " + PLATFORM_THREAD_TYPE);
         System.out.println("Backend URL: " + backendUrl);
-        System.out.println("==============================================\n");
+        System.out.println("Platform Thread Pool Size: " + platformThreads);
+        System.out.println("===============================================\n");
 
-        FrontendVirtualServer frontendServer = new FrontendVirtualServer(port, backendUrl);
+        FrontendForPT frontendServer = new FrontendForPT(port, backendUrl, platformThreads);
 
         // Shutdown hook
         Runtime.getRuntime().addShutdownHook(new Thread(frontendServer::stop));
@@ -170,7 +188,7 @@ public class FrontendVirtualServer {
         try {
             frontendServer.start();
         } catch (IOException e) {
-            System.err.println("Failed to start Virtual Frontend server: " + e.getMessage());
+            System.err.println("Failed to start Platform Frontend server: " + e.getMessage());
         }
     }
 }
