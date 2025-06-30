@@ -14,13 +14,13 @@ public class PlatformThreadvsVirtualThread {
         // Enable detailed pinning diagnostics
         // System.setProperty("jdk.tracePinnedThreads", "full");
         waitForUserInput();
-        compareTraditionalThreads();
+        comparePlatformThreads();
         waitForUserInput();
         compareVirtualThreads();
         waitForUserInput();
     }
 
-    private static void compareTraditionalThreads() {
+    private static void comparePlatformThreads() {
         ExecutorService executor = Executors.newFixedThreadPool(10); // Traditional thread pool
 
         long startMemory = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
