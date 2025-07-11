@@ -1,0 +1,191 @@
+{
+  "id": null,
+  "uid": "jmeter-http-metrics",
+  "title": "JMeter HTTP Metrics Dashboard",
+  "timezone": "browser",
+  "schemaVersion": 36,
+  "version": 7,
+  "refresh": "1s",
+  "time": {
+    "from": "now-5m",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": ["1s", "5s", "10s", "30s", "1m"],
+    "time_options": ["5m", "10m", "15m", "30m"]
+  },
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "Active Threads",
+      "targets": [
+        {
+          "expr": "jmeter_threads{state=\"active\"}",
+          "legendFormat": "Active Threads",
+          "refId": "A"
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#FF0000"
+          }
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "HTTP Response Time (avg)",
+      "targets": [
+        {
+          "expr": "rate(http_response_time_histogram_sum[1m]) / rate(http_response_time_histogram_count[1m])",
+          "legendFormat": "Avg Response Time",
+          "refId": "B"
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 24,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "yellow"
+          }
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Transactions Per Second (TPS)",
+      "targets": [
+        {
+          "expr": "rate(http_response_time_histogram_count[1m])",
+          "legendFormat": "TPS",
+          "refId": "E"
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 16,
+        "w": 24,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#00FF00"
+          }
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Combined JMeter Metrics",
+      "targets": [
+        {
+          "expr": "jmeter_threads{state=\"active\"}",
+          "legendFormat": "Active Threads",
+          "refId": "A1"
+        },
+        {
+          "expr": "rate(http_response_time_histogram_sum[1m]) / rate(http_response_time_histogram_count[1m])",
+          "legendFormat": "Avg Response Time",
+          "refId": "B1"
+        },
+        {
+          "expr": "rate(http_response_time_histogram_count[1m])",
+          "legendFormat": "TPS",
+          "refId": "E1"
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 24,
+        "w": 24,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 0
+          },
+          "color": {
+            "mode": "fixed"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Active Threads"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#FF0000"
+                }
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 2
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Avg Response Time"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#FFFF00"
+                }
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 2
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "TPS"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#00FF00"
+                }
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 2
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}
