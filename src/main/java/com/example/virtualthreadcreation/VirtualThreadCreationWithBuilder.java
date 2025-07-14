@@ -1,4 +1,4 @@
-package com.example.virtualthreads;
+package com.example.virtualthreadcreation;
 
 /**
  * Demonstrates creating threads using the Thread.Builder API.

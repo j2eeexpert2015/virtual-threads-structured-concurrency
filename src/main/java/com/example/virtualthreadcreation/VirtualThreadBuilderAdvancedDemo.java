@@ -1,4 +1,4 @@
-package com.example.virtualthreads;
+package com.example.virtualthreadcreation;
 
 /**
  * Demonstrates two advanced builder options for virtual threads:

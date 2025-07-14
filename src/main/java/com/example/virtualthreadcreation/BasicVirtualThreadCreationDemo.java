@@ -1,4 +1,4 @@
-package com.example.virtualthreads;
+package com.example.virtualthreadcreation;
 
 /**
  * This class demonstrates the most basic way to create and manage threads in Java.

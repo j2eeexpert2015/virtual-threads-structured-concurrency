@@ -1,4 +1,4 @@
-package com.example.virtualthreads;
+package com.example.virtualthreadcreation;
 
 import com.example.util.CommonUtil;
 

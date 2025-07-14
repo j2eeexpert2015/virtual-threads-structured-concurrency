@@ -1,4 +1,4 @@
-package com.example.virtualthreads;
+package com.example.virtualthreadcreation;
 
 /**
  * Simple demo showing why custom thread names help with debugging
