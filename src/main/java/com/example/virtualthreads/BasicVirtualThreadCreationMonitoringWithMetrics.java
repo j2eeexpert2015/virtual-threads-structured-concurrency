@@ -6,7 +6,7 @@ import com.example.util.PrometheusMetricsInitializer;
  * This class demonstrates basic virtual and platform thread creation
  * along with JFR metrics tracking using Micrometer and Prometheus.
  */
-public class BasicVirtualThreadCreationWithMetricsDemo {
+public class BasicVirtualThreadCreationMonitoringWithMetrics {
 
     public static void main(String[] args) throws InterruptedException {
 
