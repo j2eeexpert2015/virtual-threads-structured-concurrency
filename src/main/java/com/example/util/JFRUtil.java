@@ -21,7 +21,15 @@ public class JFRUtil {
 
     private static final String DEFAULT_OUTPUT_DIR = "jfr-recordings";
     private static Recording currentRecording;
-    private static boolean recordingActive = false;
+
+    /**
+     * Starts a JFR recording optimized for virtual thread monitoring
+     *
+     * @return the started Recording instance
+     */
+    public static Recording startVirtualThreadRecording() {
+        return startVirtualThreadRecording("VirtualThreadDemo");
+    }
 
     /**
      * Starts a JFR recording with a custom name
@@ -30,14 +38,13 @@ public class JFRUtil {
      * @return the started Recording instance
      */
     public static Recording startVirtualThreadRecording(String recordingName) {
-        if (recordingActive) {
+        if (currentRecording != null) {
             System.out.println("⚠️ JFR recording already running, stopping previous recording");
             stopRecording();
         }
 
         currentRecording = createVirtualThreadRecording(recordingName);
         currentRecording.start();
-        recordingActive = true;
 
         System.out.println("🚀 JFR recording started: " + currentRecording.getName());
         return currentRecording;
@@ -59,7 +66,7 @@ public class JFRUtil {
      * @return Path to the saved JFR file, or null if no recording was active
      */
     public static Path stopRecording(String outputDir) {
-        if (currentRecording == null || !recordingActive) {
+        if (currentRecording == null) {
             System.out.println("⚠️ No active JFR recording to stop");
             return null;
         }
@@ -69,14 +76,12 @@ public class JFRUtil {
             Path savedFile = saveRecording(currentRecording, outputDir);
             currentRecording.close();
             currentRecording = null;
-            recordingActive = false;
 
             System.out.println("⏹️ JFR recording stopped and saved to: " + savedFile.toAbsolutePath());
             return savedFile;
 
         } catch (IOException e) {
             System.err.println("❌ Error saving JFR recording: " + e.getMessage());
-            recordingActive = false;
             return null;
         }
     }
@@ -156,6 +161,15 @@ public class JFRUtil {
         recording.enable("jdk.VirtualThreadSubmitFailed")
                 .withStackTrace();
 
+        // General thread events for comparison
+        recording.enable("jdk.ThreadStart").withStackTrace();
+        recording.enable("jdk.ThreadEnd").withStackTrace();
+        recording.enable("jdk.ThreadSleep").withThreshold(Duration.ofMillis(1));
+
+        // Monitor synchronization events
+        recording.enable("jdk.JavaMonitorEnter").withThreshold(Duration.ofMillis(1));
+        recording.enable("jdk.JavaMonitorWait").withThreshold(Duration.ofMillis(1));
+
         recording.setMaxAge(Duration.ofMinutes(10));
         recording.setName(baseName + "-" + Instant.now().getEpochSecond());
 
@@ -234,6 +248,52 @@ public class JFRUtil {
     }
 
     /**
+     * Prints detailed carrier thread analysis
+     */
+    private static void printCarrierThreadAnalysis(Map<String, CarrierThreadInfo> carrierStats) {
+        if (carrierStats.isEmpty()) {
+            System.out.println("\n🚛 No carrier thread information found");
+            return;
+        }
+
+        System.out.println("\n🚛 Carrier Thread Analysis:");
+        System.out.println("============================");
+
+        carrierStats.values().stream()
+                .sorted((a, b) -> Integer.compare(b.virtualThreadsHosted, a.virtualThreadsHosted))
+                .forEach(carrier -> {
+                    System.out.printf("🔧 Carrier: %s (ID: %d)%n", carrier.name, carrier.id);
+                    System.out.printf("   └─ Virtual Threads Hosted: %d%n", carrier.virtualThreadsHosted);
+                    System.out.printf("   └─ Total Events: %d%n", carrier.totalEvents);
+                });
+
+        int totalCarriers = carrierStats.size();
+        int totalVirtualThreadsHosted = carrierStats.values().stream()
+                .mapToInt(c -> c.virtualThreadsHosted)
+                .sum();
+
+        System.out.printf("\n📈 Carrier Summary:%n");
+        System.out.printf("Total Carrier Threads: %d%n", totalCarriers);
+        System.out.printf("Average VTs per Carrier: %.1f%n",
+                totalCarriers > 0 ? (double) totalVirtualThreadsHosted / totalCarriers : 0);
+    }
+
+    /**
+     * Helper class to track carrier thread information
+     */
+    private static class CarrierThreadInfo {
+        final String name;
+        final long id;
+        int virtualThreadsHosted = 0;
+        int totalEvents = 0;
+
+        CarrierThreadInfo(String name, long id) {
+            this.name = name;
+            this.id = id;
+        }
+    }
+
+    /**
      * Gets the current active recording
      */
     public static Recording getCurrentRecording() {
@@ -244,8 +304,6 @@ public class JFRUtil {
      * Checks if a recording is currently active
      */
     public static boolean isRecording() {
-        return recordingActive && currentRecording != null;
+        return currentRecording != null;
     }
 }
-
-
