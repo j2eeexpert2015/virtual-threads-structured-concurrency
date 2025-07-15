@@ -17,13 +17,13 @@ public class BasicVirtualThreadCreationMonitoringDemo {
             System.out.println("Is virtual: " + Thread.currentThread().isVirtual());
             System.out.println("Is it a daemon thread? " + Thread.currentThread().isDaemon());
 
-            /*
+
             try {
                 Thread.sleep(5000); // Keep thread alive for 5 seconds
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
-             */
+
         };
 
         CommonUtil.waitForUserInput();
@@ -31,7 +31,8 @@ public class BasicVirtualThreadCreationMonitoringDemo {
         platformThread.start();
         platformThread.join();
         
-        Thread virtualThread = Thread.startVirtualThread(task);
+        //Thread virtualThread = Thread.startVirtualThread(task);
+        Thread virtualThread = Thread.ofVirtual().name("JFRDemo-Thread").start(task);
         virtualThread.join();
 
         CommonUtil.waitForUserInput();
