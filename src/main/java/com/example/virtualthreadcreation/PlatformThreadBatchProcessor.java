@@ -11,6 +11,9 @@ public class PlatformThreadBatchProcessor {
     private static final int TASK_COUNT = 1000;
     private static final int POOL_SIZE = 10;
     private static final boolean USE_IO = true; // Toggle between I/O and CPU task
+    private static final String EXTERNAL_API_URL = "https://postman-echo.com/delay/1";
+    //private static final String EXTERNAL_API_URL = "https://httpbin.org/delay/1";
+    //private static final String EXTERNAL_API_URL = "https://randomuser.me/api";
 
     public static void main(String[] args) throws InterruptedException {
         System.out.println("=== Platform Thread Batch Processor Started ===");
@@ -43,7 +46,7 @@ public class PlatformThreadBatchProcessor {
         long start = System.nanoTime();
         try {
             HttpClient httpClient = HttpClient.newHttpClient();
-            HttpRequest request = HttpRequest.newBuilder(new URI("https://randomuser.me/api")).GET().build();
+            HttpRequest request = HttpRequest.newBuilder(new URI(EXTERNAL_API_URL)).GET().build();
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             long end = System.nanoTime();
             System.out.printf("Task %05d completed on %s (isVirtual=%b), status: %d, time: %d ms%n",
