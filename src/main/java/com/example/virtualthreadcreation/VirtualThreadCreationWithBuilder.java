@@ -8,8 +8,6 @@ package com.example.virtualthreadcreation;
  */
 public class VirtualThreadCreationWithBuilder {
 
-    
-
     public static void main(String[] args) throws InterruptedException {
 
         Runnable basicTask = () -> {
