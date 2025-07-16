@@ -11,7 +11,6 @@ public class VirtualThreadBatchProcessor {
     private static final int TASK_COUNT = 1000;
     private static final boolean USE_IO = true; // Toggle between I/O and CPU-bound tasks
     private static final String EXTERNAL_API_URL = "https://postman-echo.com/delay/1";
-    //private static final String EXTERNAL_API_URL = "https://httpbin.org/delay/1";
     //private static final String EXTERNAL_API_URL = "https://randomuser.me/api";
 
     public static void main(String[] args) throws InterruptedException {
