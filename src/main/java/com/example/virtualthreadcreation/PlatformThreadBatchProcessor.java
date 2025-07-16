@@ -1,5 +1,6 @@
 package com.example.virtualthreadcreation;
 
+
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -15,6 +16,7 @@ public class PlatformThreadBatchProcessor {
     //private static final String EXTERNAL_API_URL = "https://randomuser.me/api";
 
     public static void main(String[] args) throws InterruptedException {
+        //CommonUtil.waitForUserInput();
         System.out.println("=== Platform Thread Batch Processor Started ===");
         System.out.println("Available processors: " + Runtime.getRuntime().availableProcessors());
 
