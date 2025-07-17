@@ -23,7 +23,7 @@ public class VirtualThreadExecutionTest {
                 Runnable workload = () -> {
                     // Choose the workload type to test:
                      simulateBlockingIO();
-                    // simulateCPULoad();
+                    //simulateCPULoad();
                     //simulateSynchronizedBlock();
                 };
 
