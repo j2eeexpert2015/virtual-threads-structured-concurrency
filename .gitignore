@@ -8,3 +8,4 @@
 *.jtl
 *.jfr
 /jfr-config
+*.jfc
