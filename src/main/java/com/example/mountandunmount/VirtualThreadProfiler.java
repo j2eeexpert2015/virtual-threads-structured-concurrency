@@ -41,7 +41,7 @@ public class VirtualThreadProfiler {
             String carrierThreadNameAfter = extractCarrierThreadName(threadAfter);
 
             String threadSwitchNote = carrierThreadNameBefore.equals(carrierThreadNameAfter)
-                    ? "❌ " + virtualThreadName + " stayed on " + carrierThreadNameBefore
+                    ? "❌ " + virtualThreadName + " remounted on same carrier thread ! " + carrierThreadNameBefore
                     : "✅ " + virtualThreadName + " hopped from " + carrierThreadNameBefore
                     + " to " + carrierThreadNameAfter;
 

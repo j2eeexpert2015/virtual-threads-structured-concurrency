@@ -12,7 +12,7 @@ import static java.math.BigInteger.valueOf;
  * such as I/O, CPU-bound, and synchronized blocks.
  * Profiles thread execution and detects thread hops.
  */
-public class VirtualThreadExecutionTest {
+public class VirtualThreadMountUnmountWithCustomProfiler {
 
     private static final int NUM_TASKS = 50;
     private static final VirtualThreadProfiler profiler = new VirtualThreadProfiler(true);
@@ -22,9 +22,8 @@ public class VirtualThreadExecutionTest {
             for (int taskId = 0; taskId < NUM_TASKS; taskId++) {
                 Runnable workload = () -> {
                     // Choose the workload type to test:
-                     simulateBlockingIO();
+                    simulateBlockingIO();
                     //simulateCPULoad();
-                    //simulateSynchronizedBlock();
                 };
 
                 executor.submit(profiler.profile(taskId, workload));
