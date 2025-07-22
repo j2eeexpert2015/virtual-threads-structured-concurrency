@@ -13,29 +13,17 @@ public class VirtualThreadMountUnmount {
 
     public static void main(String[] args) throws InterruptedException {
 
-        Runnable task1 = () -> {
-            log("Starting task1 - Initial mount");
-            sleepFor(10, ChronoUnit.MICROS);  // This will cause unmount
-            log("After first sleep - Mounted again");
-            sleepFor(10, ChronoUnit.MICROS);
-            log("After second sleep - Mounted again");
-            sleepFor(10, ChronoUnit.MICROS);
-            log("After third sleep - Mounted again");
-        };
-
-        Runnable task2 = () -> {
-            sleepFor(10, ChronoUnit.MICROS);
-            sleepFor(10, ChronoUnit.MICROS);
-            sleepFor(10, ChronoUnit.MICROS);
-        };
-
         int NUMBER_OF_THREADS = 10;
+        Runnable taskWithLogAndSleep = () -> {
+            log("Starting task1 - Initial mount");
+            sleepFor(500, ChronoUnit.MICROS);  // This will cause unmount
+
+        };
+
         List<Thread> threads = new ArrayList<>();
 
-        for (int index = 0; index < NUMBER_OF_THREADS; index++) {
-            Thread thread = (index == 0)
-                    ? Thread.ofVirtual().unstarted(task1)
-                    : Thread.ofVirtual().unstarted(task2);
+        for (int i = 0; i < NUMBER_OF_THREADS; i++) {
+            Thread thread = Thread.ofVirtual().unstarted(taskWithLogAndSleep);
             threads.add(thread);
         }
 
@@ -49,7 +37,6 @@ public class VirtualThreadMountUnmount {
             thread.join();
         }
 
-        log("All virtual threads have completed execution.");
     }
 
     /**
@@ -68,10 +55,12 @@ public class VirtualThreadMountUnmount {
      */
     private static void log(String message) {
         Thread current = Thread.currentThread();
-        System.out.printf("[%-20s] Thread: %s (Virtual: %s)%n",
+        System.out.printf("[%-20s] Thread: %s (Virtual: %s), Object: %s%n",
                 message,
                 current.getName(),
-                current.isVirtual());
+                current.isVirtual(),
+                current);
+
     }
 }
 
