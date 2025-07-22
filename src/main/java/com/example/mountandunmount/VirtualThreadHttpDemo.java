@@ -1,5 +1,6 @@
 package com.example.mountandunmount;
 
+import com.example.util.CommonUtil;
 import com.example.util.JFRUtil;
 
 import java.net.URI;
@@ -19,6 +20,8 @@ public class VirtualThreadHttpDemo {
     public static void main(String[] args) throws InterruptedException {
         // Optionally start JFR recording programmatically using JFRUtil.
         // JFRUtil.startVirtualThreadRecording("VirtualThreadHttpDemo");
+
+        CommonUtil.waitForUserInput();
 
         HttpClient client = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(5))
