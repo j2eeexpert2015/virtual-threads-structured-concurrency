@@ -14,6 +14,7 @@
     <event name="jdk.VirtualThreadPinned">
         <setting name="enabled">true</setting>
         <setting name="stackTrace">true</setting>
+        <setting name="threshold">5 ms</setting> <!-- Reduced pinning detection threshold -->
     </event>
 
     <event name="jdk.VirtualThreadSubmitFailed">
@@ -36,6 +37,11 @@
     </event>
 
     <event name="jdk.JavaMonitorEnter">
+        <setting name="enabled">true</setting>
+        <setting name="stackTrace">true</setting>
+    </event>
+
+    <event name="jdk.JavaMonitorBlocked">
         <setting name="enabled">true</setting>
         <setting name="stackTrace">true</setting>
     </event>
