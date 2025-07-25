@@ -58,6 +58,7 @@ public class VirtualThreadPinningDemo {
     private static final ExecutorService vtExecutor = Executors.newVirtualThreadPerTaskExecutor();
 
     public static void main(String[] args) {
+        System.out.println("Running Java Version: " + System.getProperty("java.version"));
         // Enable detailed pinning event logging (commented here as it's in VM options)
         System.setProperty("jdk.tracePinnedThreads", "full");
         System.out.println("=== Virtual Thread Pinning Demo ===");
