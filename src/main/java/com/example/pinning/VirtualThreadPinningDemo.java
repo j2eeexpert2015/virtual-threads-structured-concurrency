@@ -6,6 +6,7 @@ import com.example.util.JFRUtilWithJFC;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -14,7 +15,7 @@ import java.util.concurrent.locks.ReentrantLock;
  *
  * VM Options for running with JFR monitoring:
  *
- *  -XX:StartFlightRecording=filename=pinning_demo.jfr,settings=./jfr-config/virtual-threads.jfc,dumponexit=true -Djdk.tracePinnedThreads=full
+ *  -XX:StartFlightRecording=filename=pinning_demo.jfr,settings=./jfr-config/virtual-threads.jfc -Djdk.tracePinnedThreads=full
  *
  * Notes:
  * 1. The `virtual-threads.jfc` file should be located in the `jfr-config` folder under the project.
@@ -28,48 +29,57 @@ public class VirtualThreadPinningDemo {
     // Simulates a blocking operation
     public static void simulateBlockingWithWait() {
         try {
-            System.out.println("Blocking task started");
-            Thread.sleep(21000); // Simulates blocking I/O or delay
-            System.out.println("Blocking task finished");
+            System.out.println("[" + Thread.currentThread().getName() + "] Blocking task started");
+            Thread.sleep(10000); // Simulates blocking I/O or delay
+            System.out.println("[" + Thread.currentThread().getName() + "] Blocking task finished");
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
     }
 
     // This method causes pinning because of the synchronized keyword
-    public static synchronized void simulateBlockingWorkWithSynchronized()
-    {
+    public static synchronized void simulateBlockingWorkWithSynchronized() {
         simulateBlockingWithWait();
     }
 
-    // Simulates a blocking operation
+    // Simulates a blocking operation with a ReentrantLock
     public static void simulateBlockingWithReEntrantLock() {
         ReentrantLock lock = new ReentrantLock();
         lock.lock();
         try {
-            // Blocking I/O while holding the lock
-            Thread.sleep(10000); // or any blocking operation
-        }
-        catch (InterruptedException e) {
+            System.out.println("[" + Thread.currentThread().getName() + "] Blocking with ReentrantLock");
+            Thread.sleep(10000);
+        } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-        }
-        finally {
+        } finally {
             lock.unlock();
         }
     }
-    
 
-    private static final ExecutorService vtExecutor = Executors.newVirtualThreadPerTaskExecutor();
+    // Custom ThreadFactory to assign names to virtual threads
+    private static final ThreadFactory namedVirtualThreadFactory =
+            Thread.ofVirtual().name("VT-PinningDemo-", 0).factory();
+
+    private static final ExecutorService vtExecutor = Executors.newThreadPerTaskExecutor(namedVirtualThreadFactory);
 
     public static void main(String[] args) {
-
         System.out.println("Running Java Version: " + System.getProperty("java.version"));
-        // Enable detailed pinning event logging (commented here as it's in VM options)
-        //System.setProperty("jdk.tracePinnedThreads", "full");
         System.out.println("=== Virtual Thread Pinning Demo ===");
+
         vtExecutor.submit(VirtualThreadPinningDemo::simulateBlockingWorkWithSynchronized);
 
-        // Shutdown and wait for tasks to complete instead of Thread.sleep(10000)
+        // Submit tasks 25 times using modern loop
+        for (int i = 0; i < 25; i++) {
+            final int taskId = i;
+            vtExecutor.submit(() -> {
+                System.out.println("Task " + taskId + " started on [" + Thread.currentThread().getName() + "]");
+                //simulateBlockingWorkWithSynchronized();
+                //simulateBlockingWithWait();
+                System.out.println("Task " + taskId + " completed");
+            });
+        }
+
+        // Shutdown and wait for tasks to complete
         vtExecutor.shutdown();
         try {
             if (!vtExecutor.awaitTermination(15, TimeUnit.SECONDS)) {
