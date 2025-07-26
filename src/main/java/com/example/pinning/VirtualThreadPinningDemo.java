@@ -36,6 +36,12 @@ public class VirtualThreadPinningDemo {
         }
     }
 
+    // This method causes pinning because of the synchronized keyword
+    public static synchronized void simulateBlockingWorkWithSynchronized()
+    {
+        simulateBlockingWithWait();
+    }
+
     // Simulates a blocking operation
     public static void simulateBlockingWithReEntrantLock() {
         ReentrantLock lock = new ReentrantLock();
@@ -51,11 +57,7 @@ public class VirtualThreadPinningDemo {
             lock.unlock();
         }
     }
-
-    // This method causes pinning because of the synchronized keyword
-    public static synchronized void simulateBlockingWorkWithSynchronized() {
-        simulateBlockingWithWait();
-    }
+    
 
     private static final ExecutorService vtExecutor = Executors.newVirtualThreadPerTaskExecutor();
 
