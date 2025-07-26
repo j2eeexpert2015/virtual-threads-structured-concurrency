@@ -42,6 +42,11 @@
             <artifactId>loom-unit</artifactId>
             <version>0.3.0</version>
         </dependency>
+        <dependency>
+            <groupId>org.jsoup</groupId>
+            <artifactId>jsoup</artifactId>
+            <version>1.16.1</version>
+        </dependency>
     </dependencies>
 
     <build>

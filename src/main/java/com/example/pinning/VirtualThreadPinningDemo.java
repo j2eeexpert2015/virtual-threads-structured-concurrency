@@ -1,6 +1,8 @@
 package com.example.pinning;
 
 import com.example.util.CommonUtil;
+import com.example.util.JFRUtil;
+import com.example.util.JFRUtilWithJFC;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -27,7 +29,7 @@ public class VirtualThreadPinningDemo {
     public static void simulateBlockingWithWait() {
         try {
             System.out.println("Blocking task started");
-            Thread.sleep(10000); // Simulates blocking I/O or delay
+            Thread.sleep(21000); // Simulates blocking I/O or delay
             System.out.println("Blocking task finished");
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -58,19 +60,23 @@ public class VirtualThreadPinningDemo {
     private static final ExecutorService vtExecutor = Executors.newVirtualThreadPerTaskExecutor();
 
     public static void main(String[] args) {
+        System.out.println("🚀 Starting JFR recording for virtual thread monitoring...");
+        //JFRUtil.startVirtualThreadRecording("VirtualThreadJFRDemo");
+        JFRUtilWithJFC.startRecording();
         System.out.println("Running Java Version: " + System.getProperty("java.version"));
+        //CommonUtil.waitForUserInput();
         // Enable detailed pinning event logging (commented here as it's in VM options)
-        System.setProperty("jdk.tracePinnedThreads", "full");
+        //System.setProperty("jdk.tracePinnedThreads", "full");
         System.out.println("=== Virtual Thread Pinning Demo ===");
-        vtExecutor.submit(VirtualThreadPinningDemo::simulateBlockingWorkWithSynchronized);
-        /*
-        for (int i = 1; i <= 5; i++) {
+        //vtExecutor.submit(VirtualThreadPinningDemo::simulateBlockingWorkWithSynchronized);
+
+        for (int i = 1; i <= 10000; i++) {
             int id = i;
             vtExecutor.submit(VirtualThreadPinningDemo::simulateBlockingWorkWithSynchronized);
-            vtExecutor.submit(VirtualThreadPinningDemo::simulateBlockingWithReEntrantLock);
+            //vtExecutor.submit(VirtualThreadPinningDemo::simulateBlockingWithReEntrantLock);
 
         }
-         */
+
 
         // Shutdown and wait for tasks to complete instead of Thread.sleep(10000)
         vtExecutor.shutdown();
@@ -88,6 +94,13 @@ public class VirtualThreadPinningDemo {
             Thread.sleep(2000);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
+        }
+        //CommonUtil.waitForUserInput();
+        System.out.println("\n📊 Stopping JFR recording and analyzing results...");
+        //var jfrFile = JFRUtil.stopRecording();
+        var jfrFile = JFRUtilWithJFC.stopRecording();
+        if (jfrFile != null) {
+            JFRUtil.analyzeRecording(jfrFile);
         }
         System.out.println("=== Demo Finished ===");
     }
