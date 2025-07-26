@@ -60,23 +60,12 @@ public class VirtualThreadPinningDemo {
     private static final ExecutorService vtExecutor = Executors.newVirtualThreadPerTaskExecutor();
 
     public static void main(String[] args) {
-        System.out.println("🚀 Starting JFR recording for virtual thread monitoring...");
-        //JFRUtil.startVirtualThreadRecording("VirtualThreadJFRDemo");
-        JFRUtilWithJFC.startRecording();
+
         System.out.println("Running Java Version: " + System.getProperty("java.version"));
-        //CommonUtil.waitForUserInput();
         // Enable detailed pinning event logging (commented here as it's in VM options)
         //System.setProperty("jdk.tracePinnedThreads", "full");
         System.out.println("=== Virtual Thread Pinning Demo ===");
-        //vtExecutor.submit(VirtualThreadPinningDemo::simulateBlockingWorkWithSynchronized);
-
-        for (int i = 1; i <= 10000; i++) {
-            int id = i;
-            vtExecutor.submit(VirtualThreadPinningDemo::simulateBlockingWorkWithSynchronized);
-            //vtExecutor.submit(VirtualThreadPinningDemo::simulateBlockingWithReEntrantLock);
-
-        }
-
+        vtExecutor.submit(VirtualThreadPinningDemo::simulateBlockingWorkWithSynchronized);
 
         // Shutdown and wait for tasks to complete instead of Thread.sleep(10000)
         vtExecutor.shutdown();
@@ -95,13 +84,7 @@ public class VirtualThreadPinningDemo {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
-        //CommonUtil.waitForUserInput();
-        System.out.println("\n📊 Stopping JFR recording and analyzing results...");
-        //var jfrFile = JFRUtil.stopRecording();
-        var jfrFile = JFRUtilWithJFC.stopRecording();
-        if (jfrFile != null) {
-            JFRUtil.analyzeRecording(jfrFile);
-        }
+
         System.out.println("=== Demo Finished ===");
     }
 }
