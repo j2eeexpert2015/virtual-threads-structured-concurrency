@@ -5,55 +5,42 @@ import java.util.concurrent.*;
 /**
  * ProductPageWithStructuredConcurrency
  *
- * This demo uses structured concurrency (StructuredTaskScope) to manage child tasks.
+ * Demonstrates how structured concurrency (StructuredTaskScope.ShutdownOnFailure)
+ * solves common unstructured concurrency issues.
  *
- * ▶ Four scenarios are demonstrated:
- *    1. All succeed – Normal operation.
- *    2. Inventory fails – All subtasks canceled immediately.
- *    3. Inventory hangs – Tasks canceled as soon as failure is detected.
- *    4. User cancels parent thread – Cancellation propagates to child tasks.
- *
- * ▶ Observe behavior via logs or JFR/VisualVM: no thread leaks.
- * ▶ Child threads clearly print when interrupted.
+ * ▶ Scenario 1: Failure in one subtask cancels others
+ * ▶ Scenario 2: User interrupt cancels subtasks
+ * ▶ Scenario 3: Failure + blocking = tasks canceled early
+ * ▶ Scenario 4: Proper propagation of user cancellation
  */
 public class ProductPageWithStructuredConcurrency {
 
     public static void main(String[] args) throws Exception {
-        ProductPageWithStructuredConcurrency demo = new ProductPageWithStructuredConcurrency();
+        ProductPageWithStructuredConcurrency productPageWithStructuredConcurrency = new ProductPageWithStructuredConcurrency();
 
-        //demo.runSuccessScenario();
-        //demo.runFailureScenario();
-        //demo.runHangScenario();
-        demo.runUserCancellationScenario();
+        productPageWithStructuredConcurrency.runScenario1_FailureCancelsOthers();
+        productPageWithStructuredConcurrency.runScenario2_CancellationPropagation();
+        productPageWithStructuredConcurrency.runScenario3_AvoidWastedTimeOnFailure();
     }
 
-    public void runSuccessScenario() throws Exception {
-        System.out.println("\n=== [Scenario 1] All Services Succeed ===");
-        ProductPageData data = loadProductPage("P-SUCCESS", false, false);
-        System.out.println("[Result] " + data);
-    }
-
-    public void runFailureScenario() {
-        System.out.println("\n=== [Scenario 2] Inventory Service Fails ===");
+    // Scenario 1: Failure in one subtask cancels others
+    public void runScenario1_FailureCancelsOthers() {
+        System.out.println("\n=== [Scenario 1] Failure in One Subtask Cancels Others ===");
         try {
-            loadProductPage("P-FAIL", false, true);
+            loadProductPage("P-FAIL-1", false, true, false);
         } catch (Exception e) {
-            System.out.println("❌ Caught exception: " + e.getMessage());
+            System.out.println("❌ Caught in parent: " + e.getMessage());
         }
     }
 
-    public void runHangScenario() throws Exception {
-        System.out.println("\n=== [Scenario 3] Inventory Service Hangs ===");
-        loadProductPage("P-HANG", true, false);
-    }
-
-    public void runUserCancellationScenario() throws Exception {
-        System.out.println("\n=== [Scenario 4] User Cancels Parent Thread ===");
+    // Scenario 2: User interrupt cancels all subtasks
+    public void runScenario2_CancellationPropagation() throws Exception {
+        System.out.println("\n=== [Scenario 2] Cancellation Propagation to Subtasks ===");
 
         Thread parent = new Thread(() -> {
             try {
-                ProductPageData data = loadProductPage("P-CANCEL", false, false);
-                System.out.println("→ [Parent Thread] Completed: " + data);
+                loadProductPage("P-CANCEL", false, false, false);
+                System.out.println("→ [Parent Thread] Completed");
             } catch (InterruptedException e) {
                 System.out.println("⚠️ [Parent Thread] Interrupted.");
             } catch (Exception e) {
@@ -62,21 +49,33 @@ public class ProductPageWithStructuredConcurrency {
         });
 
         parent.start();
-        Thread.sleep(200);
-        System.out.println(">>> Simulating user cancellation...");
+        Thread.sleep(200); // Let child tasks begin
+        System.out.println(">>> Interrupting parent thread...");
         parent.interrupt();
         parent.join();
     }
 
-    public ProductPageData loadProductPage(String productId, boolean simulateHang, boolean simulateFailure) throws Exception {
-        try (var scope = new StructuredTaskScope.ShutdownOnFailure()) {
+    // Scenario 3: Failure + blocking – wasted time avoided
+    public void runScenario3_AvoidWastedTimeOnFailure() throws Exception {
+        System.out.println("\n=== [Scenario 3] Failure + Blocking = Canceled Early ===");
+        try {
+            loadProductPage("P-WASTE", false, true, true);
+        } catch (Exception e) {
+            System.out.println("❌ Caught in parent: " + e.getMessage());
+        }
+    }
 
+    // === Structured Concurrency Implementation ===
+    public ProductPageData loadProductPage(String productId, boolean simulateHang, boolean simulateFailure, boolean simulateReviewDelay)
+            throws Exception {
+
+        try (var scope = new StructuredTaskScope.ShutdownOnFailure()) {
             var productTask = scope.fork(() -> getProductDetails(productId));
             var inventoryTask = scope.fork(() -> getInventoryStatus(productId, simulateHang, simulateFailure));
-            var reviewTask = scope.fork(() -> ReviewService.getReviews(productId));
+            var reviewTask = scope.fork(() -> ReviewService.getReviews(productId, simulateReviewDelay));
 
-            scope.join();
-            scope.throwIfFailed();
+            scope.join();             // Wait for all tasks or fail-fast
+            scope.throwIfFailed();    // Throw if any task failed
 
             return new ProductPageData(
                     productTask.get(),
@@ -86,80 +85,64 @@ public class ProductPageWithStructuredConcurrency {
         }
     }
 
-    // ===== Simulated Services with Interruption Logging =====
+    // === Simulated Services with Interruption Awareness ===
 
     private ProductDetails getProductDetails(String productId) throws InterruptedException {
-        String name = Thread.currentThread().getName();
-        System.out.println("→ [Product Service] STARTED on " + name);
-        try {
-            for (int i = 1; i <= 5; i++) {
-                if (Thread.currentThread().isInterrupted()) {
-                    System.out.println("⚠️ [Product Service] INTERRUPTED at step " + i);
-                    throw new InterruptedException("Product Service interrupted");
-                }
-                Thread.sleep(100);
+        System.out.println("→ [Product Service] STARTED");
+        for (int i = 1; i <= 5; i++) {
+            if (Thread.currentThread().isInterrupted()) {
+                System.out.println("⚠️ [Product Service] INTERRUPTED at step " + i);
+                throw new InterruptedException("Product Service interrupted");
             }
-            System.out.println("✓ [Product Service] COMPLETED");
-            return new ProductDetails(productId, "Wireless Headphones", "Premium noise-canceling headphones");
-        } catch (InterruptedException e) {
-            System.out.println("✗ [Product Service] EXITING due to interruption");
-            throw e;
+            Thread.sleep(100);
         }
+        System.out.println("✓ [Product Service] COMPLETED");
+        return new ProductDetails(productId, "Wireless Headphones", "Premium noise-canceling headphones");
     }
 
-    private InventoryStatus getInventoryStatus(String productId, boolean hang, boolean fail) throws InterruptedException {
-        String name = Thread.currentThread().getName();
-        System.out.println("→ [Inventory Service] STARTED on " + name);
-        try {
-            if (hang) {
-                System.out.println("!!! [Inventory Service] HANGING indefinitely...");
-                Thread.sleep(Long.MAX_VALUE);
-            }
-
-            if (fail) {
-                Thread.sleep(300);
-                System.out.println("✗ [Inventory Service] THROWING exception");
-                throw new RuntimeException("Inventory service failed");
-            }
-
-            for (int i = 1; i <= 4; i++) {
-                if (Thread.currentThread().isInterrupted()) {
-                    System.out.println("⚠️ [Inventory Service] INTERRUPTED at step " + i);
-                    throw new InterruptedException("Inventory Service interrupted");
-                }
-                Thread.sleep(100);
-            }
-
-            System.out.println("✓ [Inventory Service] COMPLETED");
-            return new InventoryStatus(productId, 12, true);
-        } catch (InterruptedException e) {
-            System.out.println("✗ [Inventory Service] EXITING due to interruption");
-            throw e;
+    private InventoryStatus getInventoryStatus(String productId, boolean hang, boolean fail)
+            throws InterruptedException {
+        System.out.println("→ [Inventory Service] STARTED");
+        if (hang) {
+            System.out.println("!!! [Inventory Service] HANGING indefinitely...");
+            Thread.sleep(Long.MAX_VALUE);
         }
+        if (fail) {
+            Thread.sleep(300);
+            System.out.println("✗ [Inventory Service] THROWING exception");
+            throw new RuntimeException("Inventory service failed for product: " + productId);
+        }
+
+        for (int i = 1; i <= 4; i++) {
+            if (Thread.currentThread().isInterrupted()) {
+                System.out.println("⚠️ [Inventory Service] INTERRUPTED at step " + i);
+                throw new InterruptedException("Inventory Service interrupted");
+            }
+            Thread.sleep(100);
+        }
+
+        System.out.println("✓ [Inventory Service] COMPLETED");
+        return new InventoryStatus(productId, 12, true);
     }
 
     static class ReviewService {
-        public static CustomerReviews getReviews(String productId) throws InterruptedException {
-            String name = Thread.currentThread().getName();
-            System.out.println("→ [Review Service] STARTED on " + name);
-            try {
-                for (int i = 1; i <= 3; i++) {
-                    if (Thread.currentThread().isInterrupted()) {
-                        System.out.println("⚠️ [Review Service] INTERRUPTED at step " + i);
-                        throw new InterruptedException("Review Service interrupted");
-                    }
-                    Thread.sleep(100);
+        public static CustomerReviews getReviews(String productId, boolean delay) throws InterruptedException {
+            System.out.println("→ [Review Service] STARTED");
+            int totalDelay = delay ? 5000 : 300;
+            int step = 100;
+            for (int i = 1; i <= totalDelay / step; i++) {
+                if (Thread.currentThread().isInterrupted()) {
+                    System.out.println("⚠️ [Review Service] INTERRUPTED at step " + i);
+                    throw new InterruptedException("Review Service interrupted");
                 }
-                System.out.println("✓ [Review Service] COMPLETED");
-                return new CustomerReviews(productId, 4.6, 248);
-            } catch (InterruptedException e) {
-                System.out.println("✗ [Review Service] EXITING due to interruption");
-                throw e;
+                Thread.sleep(step);
             }
+            System.out.println("✓ [Review Service] COMPLETED");
+            return new CustomerReviews(productId, 4.6, 248);
         }
     }
 
-    // ===== DTOs =====
+    // === DTOs ===
 
     record ProductDetails(String id, String name, String description) {}
     record InventoryStatus(String id, int quantity, boolean available) {}
