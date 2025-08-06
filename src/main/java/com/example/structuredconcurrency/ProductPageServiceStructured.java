@@ -1,117 +1,85 @@
 package com.example.structuredconcurrency;
 
-import java.time.Duration;
+import com.example.util.CommonUtil;
+
 import java.time.Instant;
+import java.util.Set;
 import java.util.concurrent.*;
 
 /**
- * Structured Concurrency with ShutdownOnFailure.
- *
- * Handles:
- * 1. Cancelling remaining tasks on failure.
- * 2. Handling user interruption.
- * 3. Enforcing timeout using joinUntil().
+ * Fixes the thread leak using structured concurrency.
  */
 public class ProductPageServiceStructured {
 
-    private static final String LOG_PREFIX = "[STRUCTURED]";
+    public void loadProductPage(String productId, boolean simulateInventoryHang) throws InterruptedException {
+        int activeThreadsBefore = Thread.activeCount();
 
-    public ProductPageData loadProductPage(String productId, boolean simulateFailure, boolean simulateTimeout)
-            throws InterruptedException, ExecutionException, TimeoutException {
+        System.out.println("\n=== [STRUCTURED] Loading product page for: " + productId + " ===");
 
         try (var scope = new StructuredTaskScope.ShutdownOnFailure()) {
+            var productFuture = scope.fork(() -> {
+                System.out.println("[Structured] → ProductDetails thread: " + Thread.currentThread().getName());
+                Thread.sleep(1000);
+                return new ProductDetails(productId, "Wireless Headphones");
+            });
 
-            StructuredTaskScope.Subtask<ProductDetails> productFuture =
-                    scope.fork(() -> {
-                        System.out.println(LOG_PREFIX + " Starting Product Details...");
-                        boolean completed = TaskSimulationUtil.simulateDelayWithCancellationCheck(
-                                "Product Details",
-                                TaskSimulationUtil.PRODUCT_DETAILS_DELAY_MS,
-                                LOG_PREFIX
-                        );
-                        if (!completed) {
-                            throw new CancellationException("Product Details cancelled");
-                        }
-                        System.out.println(LOG_PREFIX + " Completed Product Details");
-                        return new ProductDetails(productId, "Wireless Headphones", "Premium noise-canceling headphones");
-                    });
-
-            StructuredTaskScope.Subtask<InventoryStatus> inventoryFuture =
-                    scope.fork(() -> {
-                        System.out.println(LOG_PREFIX + " Starting Inventory Status" + (simulateFailure ? " (will fail)" : "") + "...");
-                        int delay = simulateFailure ?
-                                TaskSimulationUtil.INVENTORY_FAILURE_DELAY_MS :
-                                TaskSimulationUtil.INVENTORY_STATUS_DELAY_MS;
-
-                        boolean completed = TaskSimulationUtil.simulateDelayWithCancellationCheck(
-                                "Inventory Status",
-                                delay,
-                                LOG_PREFIX
-                        );
-
-                        if (!completed) {
-                            throw new CancellationException("Inventory Status cancelled");
-                        }
-
-                        if (simulateFailure) {
-                            System.out.println(LOG_PREFIX + " Inventory Status failed!");
-                            throw new RuntimeException("Inventory service failed!");
-                        }
-
-                        System.out.println(LOG_PREFIX + " Completed Inventory Status");
-                        return new InventoryStatus(productId, 15, true);
-                    });
-
-            StructuredTaskScope.Subtask<CustomerReviews> reviewsFuture =
-                    scope.fork(() -> {
-                        System.out.println(LOG_PREFIX + " Starting Customer Reviews" + (simulateTimeout ? " (slow)" : "") + "...");
-                        int delay = simulateTimeout ?
-                                TaskSimulationUtil.CUSTOMER_REVIEWS_SLOW_DELAY_MS :
-                                TaskSimulationUtil.CUSTOMER_REVIEWS_DELAY_MS;
-
-                        boolean completed = TaskSimulationUtil.simulateDelayWithCancellationCheck(
-                                "Customer Reviews",
-                                delay,
-                                LOG_PREFIX
-                        );
-
-                        if (!completed) {
-                            throw new CancellationException("Customer Reviews cancelled");
-                        }
-
-                        System.out.println(LOG_PREFIX + " Completed Customer Reviews");
-                        return new CustomerReviews(productId, 4.5, 1250);
-                    });
-
-            // Handle timeout scenario differently
-            if (simulateTimeout) {
-                Instant deadline = Instant.now().plus(Duration.ofSeconds(3));
-                scope.joinUntil(deadline);
-
-                // Check if we timed out
-                if (!scope.isShutdown()) {
-                    throw new TimeoutException("Structured concurrency timed out after 3 seconds!");
+            var inventoryFuture = scope.fork(() -> {
+                System.out.println("[Structured] → InventoryStatus thread: " + Thread.currentThread().getName());
+                if (simulateInventoryHang) {
+                    Thread.sleep(60_000); // Simulate hang
+                } else {
+                    Thread.sleep(1000);
                 }
-            } else {
-                // For non-timeout scenarios, just join (wait for all or failure)
-                scope.join();
-            }
+                return new InventoryStatus(productId, 10);
+            });
 
-            // This will throw if any task failed
-            scope.throwIfFailed();
+            var reviewsFuture = scope.fork(() -> {
+                System.out.println("[Structured] → CustomerReviews thread: " + Thread.currentThread().getName());
+                Thread.sleep(1000);
+                return new CustomerReviews(productId, 4.7);
+            });
 
-            // Get results - will throw if task was cancelled
-            return new ProductPageData(
-                    productFuture.get(),
-                    inventoryFuture.get(),
-                    reviewsFuture.get()
-            );
+            scope.joinUntil(Instant.now().plusSeconds(2)); // 2s timeout
+            scope.throwIfFailed(); // Cancel all if one fails or times out
+
+            System.out.println("[Structured] Page Loaded: " +
+                    productFuture.get() + ", " +
+                    inventoryFuture.get() + ", " +
+                    reviewsFuture.get());
+
+        } catch (Exception e) {
+            System.err.println("[Structured] ✅ Scope Handled Exception: " + e.getMessage());
         }
+
+        int activeThreadsAfter = Thread.activeCount();
+        System.out.println("[Structured] 🧵 Threads Before: " + activeThreadsBefore + ", After: " + activeThreadsAfter);
+
+        printLiveVirtualThreads();
     }
 
-    // DTOs - same as unstructured version
-    public record ProductPageData(ProductDetails details, InventoryStatus inventory, CustomerReviews reviews) {}
-    public record ProductDetails(String id, String name, String description) {}
-    public record InventoryStatus(String productId, int stockCount, boolean available) {}
-    public record CustomerReviews(String productId, double averageRating, int totalReviews) {}
+    public static void main(String[] args) throws InterruptedException {
+        CommonUtil.waitForUserInput();
+        ProductPageServiceStructured service = new ProductPageServiceStructured();
+
+        for (int i = 0; i < 5; i++) {
+            service.loadProductPage("P200" + i, true); // Simulate inventory hang
+        }
+
+        Thread.sleep(10_000); // Let everything clean up
+
+        System.out.println("\n[Structured] 🧾 FINAL Thread Count: " + Thread.activeCount());
+    }
+
+    private static void printLiveVirtualThreads() {
+        Set<Thread> threads = Thread.getAllStackTraces().keySet();
+        threads.stream()
+                .filter(t -> t.getName().contains("Virtual") && t.isAlive())
+                .forEach(t -> System.out.println("🟢 Clean → " + t.getName()));
+    }
+
+    // Sample DTOs
+    record ProductDetails(String id, String name) {}
+    record InventoryStatus(String id, int quantity) {}
+    record CustomerReviews(String id, double rating) {}
 }
+
