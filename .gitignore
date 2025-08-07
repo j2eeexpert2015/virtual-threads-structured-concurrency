@@ -10,3 +10,5 @@
 /jfr-config
 *.jfc
 *.jfc
+structured-concurrency-dump.json
+structured-concurrency-dump.txt

@@ -1,5 +1,7 @@
 package com.example.structuredconcurrency;
 
+import com.example.util.CommonUtil;
+
 import java.util.concurrent.*;
 
 /**
@@ -16,6 +18,7 @@ import java.util.concurrent.*;
 public class ProductPageWithStructuredConcurrency {
 
     public static void main(String[] args) throws Exception {
+        System.out.println("PID: " + ProcessHandle.current().pid());
         ProductPageWithStructuredConcurrency productPageWithStructuredConcurrency = new ProductPageWithStructuredConcurrency();
 
         productPageWithStructuredConcurrency.runScenario1_FailureCancelsOthers();
@@ -89,6 +92,7 @@ public class ProductPageWithStructuredConcurrency {
 
     private ProductDetails getProductDetails(String productId) throws InterruptedException {
         System.out.println("→ [Product Service] STARTED");
+
         for (int i = 1; i <= 5; i++) {
             if (Thread.currentThread().isInterrupted()) {
                 System.out.println("⚠️ [Product Service] INTERRUPTED at step " + i);
