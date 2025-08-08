@@ -22,8 +22,8 @@ public class ProductPageWithStructuredConcurrency {
         ProductPageWithStructuredConcurrency productPageWithStructuredConcurrency = new ProductPageWithStructuredConcurrency();
 
         productPageWithStructuredConcurrency.runScenario1_FailureCancelsOthers();
-        productPageWithStructuredConcurrency.runScenario2_CancellationPropagation();
-        productPageWithStructuredConcurrency.runScenario3_AvoidWastedTimeOnFailure();
+        //productPageWithStructuredConcurrency.runScenario2_CancellationPropagation();
+        //productPageWithStructuredConcurrency.runScenario3_AvoidWastedTimeOnFailure();
     }
 
     // Scenario 1: Failure in one subtask cancels others
@@ -92,7 +92,7 @@ public class ProductPageWithStructuredConcurrency {
 
     private ProductDetails getProductDetails(String productId) throws InterruptedException {
         System.out.println("→ [Product Service] STARTED");
-
+        //CommonUtil.waitForUserInput();
         for (int i = 1; i <= 5; i++) {
             if (Thread.currentThread().isInterrupted()) {
                 System.out.println("⚠️ [Product Service] INTERRUPTED at step " + i);
