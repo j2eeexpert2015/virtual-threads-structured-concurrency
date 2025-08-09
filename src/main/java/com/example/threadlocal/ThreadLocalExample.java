@@ -6,7 +6,7 @@ public class ThreadLocalExample {
         Runnable task = () -> {
             String threadName = Thread.currentThread().getName();
             threadLocal.set("Value for " + threadName);
-            System.out.println(threadName + ": " + threadLocal.get());
+            System.out.println("From thread "+threadName + ",threadLocal value: " + threadLocal.get());
         };
         Thread thread1 = new Thread(task, "Thread-1");
         Thread thread2 = new Thread(task, "Thread-2");
