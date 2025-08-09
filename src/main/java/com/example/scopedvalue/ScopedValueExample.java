@@ -14,7 +14,6 @@ public class ScopedValueExample {
     private static final ScopedValue<String> VALUE = ScopedValue.newInstance();
 
     public static void main(String[] args) {
-        // ===== Platform Thread examples =====
 
         // Task for Thread-1: bind a value to the scope, then access it
         Runnable task1 = () ->
