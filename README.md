@@ -65,7 +65,6 @@ In **Run/Debug Configuration → VM Options**, add:
 
 ```text
 --add-exports java.base/jdk.internal.vm=ALL-UNNAMED
---add-opens java.base/jdk.internal.vm=ALL-UNNAMED
 --enable-preview
 ```
 
@@ -79,7 +78,7 @@ In **Run/Debug Configuration → VM Options**, add:
 In IntelliJ, open **Run/Debug Configurations** → **Modify options** → **Add additional command line parameters** and paste the same options:
 
 ```text
---enable-preview --add-exports java.base/jdk.internal.vm=ALL-UNNAMED --add-opens java.base/jdk.internal.vm=ALL-UNNAMED
+--enable-preview --add-exports java.base/jdk.internal.vm=ALL-UNNAMED
 ```
 
 This ensures the IntelliJ **debugger** can also access and step into `Continuation` methods.
