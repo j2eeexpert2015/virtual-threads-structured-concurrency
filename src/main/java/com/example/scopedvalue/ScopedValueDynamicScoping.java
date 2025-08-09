@@ -1,18 +1,16 @@
 package com.example.scopedvalue;
 
-import java.util.NoSuchElementException;
-
 /**
  * Demonstrates dynamic scoping with ScopedValue: bound value
  * flows through the call chain without parameters
  */
-public class DynamicScopingDemo {
+public class ScopedValueDynamicScoping {
 
     // Declare ScopedValue - initially unbound
     private static final ScopedValue<String> USER = ScopedValue.newInstance();
 
     public static void main(String[] args) {
-        DynamicScopingDemo demo = new DynamicScopingDemo();
+        ScopedValueDynamicScoping demo = new ScopedValueDynamicScoping();
 
         System.out.println("=== BEFORE BINDING ===");
         demo.checkValue();
