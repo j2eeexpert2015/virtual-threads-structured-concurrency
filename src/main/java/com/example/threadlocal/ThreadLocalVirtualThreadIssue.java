@@ -1,5 +1,6 @@
 package com.example.threadlocal;
 
+
 import java.util.concurrent.StructuredTaskScope;
 
 /**
@@ -35,16 +36,16 @@ public class ThreadLocalVirtualThreadIssue {
         try (var taskScope = new StructuredTaskScope.ShutdownOnFailure()) {
             // Fork child virtual threads
             taskScope.fork(() -> {
-                System.out.println("[Structured Scope vthread-1] requestContext = " + requestContext.get()); // null
+                System.out.println("From [Structured Scope vthread-1] requestContext = " + requestContext.get()); // null
                 return null;
             });
             taskScope.fork(() -> {
                 requestContext.set("structured-scope-child-value");
-                System.out.println("[Structured Scope vthread-2 after set] requestContext = " + requestContext.get());
+                System.out.println("From [Structured Scope vthread-2 after set] requestContext = " + requestContext.get());
                 return null;
             });
             taskScope.fork(() -> {
-                System.out.println("[Structured Scope vthread-3] requestContext = " + requestContext.get()); // still null
+                System.out.println("From [Structured Scope vthread-3] requestContext = " + requestContext.get()); // still null
                 return null;
             });
 
