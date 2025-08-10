@@ -8,16 +8,23 @@ import java.util.concurrent.StructuredTaskScope;
  *  2) Virtual child thread
  *  3) StructuredTaskScope with virtual children
  *
- * ThreadLocal:       child does NOT see parent's value.
+ * ThreadLocal: child does NOT see parent's value.
  * InheritableThreadLocal: child receives a COPY of the parent's value at start time.
  *
+ * To see ThreadLocal tracing, run with JVM argument:
+ *   java -Djdk.traceVirtualThreadLocals=true com.example.threadlocal.ThreadLocalInheritanceProblem
+ *
+ * Or in IDE, add VM option: -Djdk.traceVirtualThreadLocals=true
  */
 public class ThreadLocalInheritanceProblem {
 
     public static void main(String[] args) throws Exception {
+        // NOTE: Setting this at runtime has NO EFFECT - must be set at JVM startup!
+        // System.setProperty("jdk.traceVirtualThreadLocals", "true"); // ❌ TOO LATE!
+
         System.out.println("=== Plain ThreadLocal ===");
         ThreadLocal<String> requestContext = ThreadLocal.withInitial(() -> "default");
-        //runScenariosFor(requestContext);
+        runScenariosFor(requestContext);
 
         System.out.println("\n=== InheritableThreadLocal (copy-on-start) ===");
         InheritableThreadLocal<String> inheritableRequestContext = new InheritableThreadLocal<>() {
