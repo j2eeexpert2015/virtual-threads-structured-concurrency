@@ -24,7 +24,7 @@ public class ThreadLocalInheritanceProblem {
 
         System.out.println("=== Plain ThreadLocal ===");
         ThreadLocal<String> requestContext = ThreadLocal.withInitial(() -> "default");
-        runScenariosFor(requestContext);
+        //runScenariosFor(requestContext);
 
         System.out.println("\n=== InheritableThreadLocal (copy-on-start) ===");
         InheritableThreadLocal<String> inheritableRequestContext = new InheritableThreadLocal<>() {
