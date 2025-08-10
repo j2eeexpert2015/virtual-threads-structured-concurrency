@@ -1,69 +1,56 @@
 package com.example.threadlocal;
 
 /**
- * Demonstrates that regular ThreadLocal values do NOT flow from a parent thread
- * to child threads (both platform and virtual).
+ * Demonstrates ThreadLocal (or InheritableThreadLocal) with platform vs virtual threads
  */
 public class ThreadLocalInheritanceProblem {
 
-    // Thread-local variable with default value
-    //private static final ThreadLocal<String> threadLocal = ThreadLocal.withInitial(() -> "default");
-    private static final InheritableThreadLocal<String> threadLocal =
-            new InheritableThreadLocal<>() {
-                @Override protected String initialValue() { return "default"; }
-            };
+    // Uncomment this to see inheritance in platform threads:
+    //private static final InheritableThreadLocal<String> threadLocal = new InheritableThreadLocal<>();
+
+    private static final ThreadLocal<String> threadLocal = ThreadLocal.withInitial(() -> "default");
 
     public static void main(String[] args) throws InterruptedException {
-        System.out.println("=== Step 2: ThreadLocal Inheritance Problem ===\n");
+        System.out.println("=== Platform vs Virtual Threads (ThreadLocal) ===");
 
-        System.out.println("▶ Running with Platform Threads");
-        demonstrateThreadLocalInheritance(false);
+        System.out.println("\n--- Platform Threads ---");
+        testWithPlatformThread();
 
-        System.out.println("\n▶ Running with Virtual Threads");
-        demonstrateThreadLocalInheritance(true);
+        System.out.println("\n--- Virtual Threads ---");
+        testWithVirtualThread();
     }
 
-    /**
-     * Demonstrates that ThreadLocal values are not inherited by child threads.
-     *
-     * @param useVirtualThreads true to use a virtual thread for the child, false for platform thread
-     */
-    private static void demonstrateThreadLocalInheritance(boolean useVirtualThreads) throws InterruptedException {
-        // Parent thread sets its own value
-        threadLocal.set("Value set by parent thread");
-        printThreadLocalState("Parent thread");
+    private static void testWithPlatformThread() throws InterruptedException {
+        threadLocal.set("parent-value");
+        print("Parent");
 
-        // Create and run child thread
-        Thread childThread = useVirtualThreads
-                ? Thread.ofVirtual().name("Child-Virtual-Thread").unstarted(ThreadLocalInheritanceProblem::childTask)
-                : new Thread(ThreadLocalInheritanceProblem::childTask, "Child-Platform-Thread");
+        Thread child = new Thread(ThreadLocalInheritanceProblem::childTask);
+        child.start();
+        child.join();
 
-        childThread.start();
-        childThread.join();
-
-        // Show parent's value again to confirm it’s unchanged
-        printThreadLocalState("Parent thread (after child finished)");
+        print("Parent (after child)");
+        threadLocal.remove();
     }
 
-    /**
-     * Code executed by the child thread: reads parent's TL (will be default),
-     * then writes its own value and reads it back.
-     */
+    private static void testWithVirtualThread() throws InterruptedException {
+        threadLocal.set("parent-value");
+        print("Parent");
+
+        Thread child = Thread.ofVirtual().start(ThreadLocalInheritanceProblem::childTask);
+        child.join();
+
+        print("Parent (after child)");
+        threadLocal.remove();
+    }
+
     private static void childTask() {
-        printThreadLocalState("Child thread (initial read)"); // likely "default"
-        threadLocal.set("Value set by child thread");
-        printThreadLocalState("Child thread (after setting own value)");
+        print("Child (before set)");
+        threadLocal.set("child-value");
+        print("Child (after set)");
+        threadLocal.remove();
     }
 
-    /**
-     * Prints the thread's type, name, and current ThreadLocal value with role context.
-     */
-    private static void printThreadLocalState(String role) {
-        Thread t = Thread.currentThread();
-        String type = t.isVirtual() ? "Virtual Thread" : "Platform Thread";
-        System.out.printf(
-                "%s [%s] | Thread name = %s | ThreadLocal value = \"%s\"%n",
-                role, type, t.getName(), threadLocal.get()
-        );
+    private static void print(String label) {
+        System.out.println(label + " = " + threadLocal.get());
     }
 }
