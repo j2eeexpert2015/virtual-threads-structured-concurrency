@@ -33,6 +33,11 @@ public class ScopedValueRebind {
 
         System.out.println("\n=== AFTER ALL BINDINGS END ===");
         printUser(); // Unbound again
+
+        ScopedValue.runWhere(USER, "Alice", () -> {
+            ScopedValue.runWhere(USER, "Bob", () -> {
+            });
+        });
     }
 
     private static void printUser() {
