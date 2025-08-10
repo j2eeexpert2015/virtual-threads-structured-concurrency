@@ -1,56 +1,99 @@
 package com.example.threadlocal;
 
+import java.util.concurrent.StructuredTaskScope;
+
 /**
- * Demonstrates ThreadLocal (or InheritableThreadLocal) with platform vs virtual threads
+ * Unified demonstration of ThreadLocal vs InheritableThreadLocal across:
+ *  1) Platform child thread
+ *  2) Virtual child thread
+ *  3) StructuredTaskScope with virtual children
+ *
+ * ThreadLocal:       child does NOT see parent's value.
+ * InheritableThreadLocal: child receives a COPY of the parent's value at start time.
+ *
  */
 public class ThreadLocalInheritanceProblem {
 
-    // Uncomment this to see inheritance in platform threads:
-    //private static final InheritableThreadLocal<String> threadLocal = new InheritableThreadLocal<>();
+    public static void main(String[] args) throws Exception {
+        System.out.println("=== Plain ThreadLocal ===");
+        ThreadLocal<String> requestContext = ThreadLocal.withInitial(() -> "default");
+        //runScenariosFor(requestContext);
 
-    private static final ThreadLocal<String> threadLocal = ThreadLocal.withInitial(() -> "default");
-
-    public static void main(String[] args) throws InterruptedException {
-        System.out.println("=== Platform vs Virtual Threads (ThreadLocal) ===");
-
-        System.out.println("\n--- Platform Threads ---");
-        testWithPlatformThread();
-
-        System.out.println("\n--- Virtual Threads ---");
-        testWithVirtualThread();
+        System.out.println("\n=== InheritableThreadLocal (copy-on-start) ===");
+        InheritableThreadLocal<String> inheritableRequestContext = new InheritableThreadLocal<>() {
+            @Override protected String initialValue() { return "default"; }
+        };
+        runScenariosFor(inheritableRequestContext);
     }
 
-    private static void testWithPlatformThread() throws InterruptedException {
-        threadLocal.set("parent-value");
-        print("Parent");
+    // Runs all three scenarios for the supplied context holder
+    private static void runScenariosFor(ThreadLocal<String> contextHolder) throws Exception {
+        System.out.println("\n--- Platform child ---");
+        runPlatformChildScenario(contextHolder);
 
-        Thread child = new Thread(ThreadLocalInheritanceProblem::childTask);
+        System.out.println("\n--- Virtual child ---");
+        runVirtualChildScenario(contextHolder);
+
+        System.out.println("\n--- StructuredTaskScope (virtual children) ---");
+        runStructuredScopeScenario(contextHolder);
+    }
+
+    // Scenario 1: Parent → platform child
+    private static void runPlatformChildScenario(ThreadLocal<String> contextHolder) throws InterruptedException {
+        contextHolder.set("parent-value");
+        printContext(contextHolder, "Parent");
+
+        Thread child = new Thread(() -> runChildTask(contextHolder));
         child.start();
         child.join();
 
-        print("Parent (after child)");
-        threadLocal.remove();
+        printContext(contextHolder, "Parent (after child)");
+        contextHolder.remove();
     }
 
-    private static void testWithVirtualThread() throws InterruptedException {
-        threadLocal.set("parent-value");
-        print("Parent");
+    // Scenario 2: Parent → virtual child
+    private static void runVirtualChildScenario(ThreadLocal<String> contextHolder) throws InterruptedException {
+        contextHolder.set("parent-value");
+        printContext(contextHolder, "Parent");
 
-        Thread child = Thread.ofVirtual().start(ThreadLocalInheritanceProblem::childTask);
+        Thread child = Thread.ofVirtual().start(() -> runChildTask(contextHolder));
         child.join();
 
-        print("Parent (after child)");
-        threadLocal.remove();
+        printContext(contextHolder, "Parent (after child)");
+        contextHolder.remove();
     }
 
-    private static void childTask() {
-        print("Child (before set)");
-        threadLocal.set("child-value");
-        print("Child (after set)");
-        threadLocal.remove();
+    // Scenario 3: Parent → multiple virtual children in a StructuredTaskScope
+    private static void runStructuredScopeScenario(ThreadLocal<String> contextHolder) throws Exception {
+        contextHolder.set("parent-value");
+        printContext(contextHolder, "Parent");
+
+        try (var scope = new StructuredTaskScope.ShutdownOnFailure()) {
+            scope.fork(() -> { printContext(contextHolder, "Scope child 1 (before set)"); return null; });
+            scope.fork(() -> {
+                printContext(contextHolder, "Scope child 2 (before set)");
+                contextHolder.set("scope-child-2-value");
+                printContext(contextHolder, "Scope child 2 (after set)");
+                contextHolder.remove();
+                return null;
+            });
+            scope.fork(() -> { printContext(contextHolder, "Scope child 3 (before set)"); return null; });
+            scope.join();
+        }
+
+        printContext(contextHolder, "Parent (after scope)");
+        contextHolder.remove();
     }
 
-    private static void print(String label) {
-        System.out.println(label + " = " + threadLocal.get());
+    // Child task used by scenarios 1 & 2
+    private static void runChildTask(ThreadLocal<String> contextHolder) {
+        printContext(contextHolder, "Child (before set)");
+        contextHolder.set("child-value");
+        printContext(contextHolder, "Child (after set)");
+        contextHolder.remove();
+    }
+
+    private static void printContext(ThreadLocal<String> contextHolder, String label) {
+        System.out.println(label + " = " + contextHolder.get());
     }
 }
