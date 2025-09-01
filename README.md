@@ -9,11 +9,11 @@ I create practical, hands-on courses on **Java, Spring Boot, Debugging, Git, Pyt
 
 ## 🌐 Connect With Me
 
-- 💬 Slack Group: [Join Here](https://join.slack.com/t/learningfromexp/shared_invite/zt-1fnksxgd0-_jOdmIq2voEeMtoindhWrA)  
-- 📢 After joining, go to the **#java-virtual-threads-and-structured-concurrency** channel  
-- 📧 Email: j2eeexpert2015@gmail.com  
-- 🔗 YouTube: [LearningFromExperience](https://www.youtube.com/@learningfromexperience)  
-- 📝 Medium Blog: [@mrayandutta](https://medium.com/@mrayandutta)  
+- 💬 Slack Group: [Join Here](https://join.slack.com/t/learningfromexp/shared_invite/zt-1fnksxgd0-_jOdmIq2voEeMtoindhWrA)
+- 📢 After joining, go to the **#java-virtual-threads-and-structured-concurrency** channel
+- 📧 Email: j2eeexpert2015@gmail.com
+- 🔗 YouTube: [LearningFromExperience](https://www.youtube.com/@learningfromexperience)
+- 📝 Medium Blog: [@mrayandutta](https://medium.com/@mrayandutta)
 - 💼 LinkedIn: [Ayan Dutta](https://www.linkedin.com/in/ayan-dutta-a41091b/)
 
 ---
@@ -128,8 +128,8 @@ This repository contains all the demo code for the Udemy course: **Java Virtual 
 
 ### ⚙️ Requirements
 
-- **JDK 21+** (stable virtual threads)  
-- JDK 19/20 also supported with `--enable-preview`  
+- **JDK 21+** (stable virtual threads)
+- JDK 19/20 also supported with `--enable-preview`
 - **IntelliJ IDEA** or **Eclipse** (recommended)
 - **Maven 3.9+** for building projects
 
@@ -148,15 +148,39 @@ Build the project:
 mvn clean compile
 ```
 
+## 🔧 **FIRST STEP: IntelliJ IDEA Setup**
+
+**Add --add-exports (and preview where needed) at compile and runtime.**
+
+### **IntelliJ IDEA Configuration**
+
+#### **1. Compile flags**
+Go to **Settings → Build, Execution, Deployment → Compiler → Java Compiler → "Additional command line parameters":**
+
+```
+--enable-preview --add-exports=java.base/jdk.internal.vm=ALL-UNNAMED
+```
+
+#### **2. Run/Debug flags**
+Go to **Run/Debug Configurations → your app → VM options:**
+
+```
+--enable-preview --add-exports=java.base/jdk.internal.vm=ALL-UNNAMED
+```
+
+#### **3. Project Settings**
+You should already have set:
+- **Project SDK = Java 21**
+- **Language level = 21 (Preview)** for both Project and Modules
+
+**Keep these settings as they are.**
+
+---
+
 ## ▶️ Running the Demos
 
 ### **From IntelliJ IDEA:**
-1. Go to **Run/Debug Configurations → VM Options**
-2. Add the following VM options:
-   ```
-   --add-exports java.base/jdk.internal.vm=ALL-UNNAMED
-   --enable-preview
-   ```
+After completing the setup above, you can run any demo directly from IntelliJ.
 
 ### **From Command Line (Maven):**
 
@@ -215,7 +239,7 @@ src/main/java/com/example/
 - `VirtualThreadCreationWithBuilder.java` - Builder API usage
 - `VirtualThreadCreationWithThreadFactory.java` - Factory patterns
 
-### 🏗️ **Structured Concurrency** 
+### 🏗️ **Structured Concurrency**
 - `ProductPageWithStructuredConcurrency.java` - Real-world scenarios
 - `ProductAvailabilityWithShutdownOnSuccess.java` - Success patterns
 - `StructuredVsUnstructuredDemo.java` - Side-by-side comparison
